@@ -50,8 +50,9 @@ SELECT "state"::text, "version"::text FROM "public"."deploys" WHERE "deploy_id" 
 ROLLBACK;
 ```
 
-The event key is always a bound parameter. The session also sets
-`default_transaction_read_only=on` and `application_name=aftergreen`.
+The event key is always a bound parameter. The connection sets
+`application_name=aftergreen`. Only that startup parameter is used, so it
+works behind PgBouncer.
 
 ## Verdicts
 

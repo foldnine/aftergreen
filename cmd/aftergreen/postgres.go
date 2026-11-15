@@ -59,8 +59,10 @@ func runPostgres(args []string, stdout, stderr io.Writer) int {
 		return exitInvalid
 	}
 	config.ConnectTimeout = *timeout
+	// Only application_name is sent at startup: connection poolers such as
+	// PgBouncer reject unknown startup parameters. Read-only is enforced per
+	// transaction (BEGIN READ ONLY) and should also be set on the role.
 	config.RuntimeParams["application_name"] = "aftergreen"
-	config.RuntimeParams["default_transaction_read_only"] = "on"
 	db := stdlib.OpenDB(*config)
 	defer db.Close()
 	db.SetMaxOpenConns(1)
