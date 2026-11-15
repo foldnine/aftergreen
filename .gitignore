@@ -1,0 +1,4 @@
+/aftergreen
+*.test
+*.out
+/aftergreen-demo.json
