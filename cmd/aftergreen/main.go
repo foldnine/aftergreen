@@ -37,6 +37,8 @@ const usageText = `Usage:
   aftergreen demo  [--dir PATH]
   aftergreen check [--file PATH] [--json]
   aftergreen http  --url URL [--status 200] [--contains TEXT] [--timeout 10s] [--json]
+  aftergreen postgres --contract FILE [--key KEY] [--timeout 10s] [--json]
+                     (connection string from AFTERGREEN_POSTGRES_URL)
   aftergreen version
 
 Exit codes: 0 verified, 1 failed, 2 invalid input, 3 unknown.`
@@ -55,6 +57,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runCheck(args[1:], stdout, stderr)
 	case "http":
 		return runHTTP(args[1:], stdout, stderr)
+	case "postgres":
+		return runPostgres(args[1:], stdout, stderr)
 	case "version", "--version":
 		fmt.Fprintln(stdout, "aftergreen", version)
 		return exitVerified

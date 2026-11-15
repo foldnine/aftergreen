@@ -87,3 +87,34 @@ func TestVersion(t *testing.T) {
 		t.Fatalf("%d %q", code, out)
 	}
 }
+
+func TestPostgresInvalidInput(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		os.WriteFile(p, []byte(body), 0o600)
+		return p
+	}
+	good := write("good.json", `{"version":1,"table":"leads","key_column":"event_id","key":"e1","expect":{"status":"ok"}}`)
+	t.Setenv(postgresURLEnv, "")
+	cases := map[string][]string{
+		"no contract":       {"postgres"},
+		"no env":            {"postgres", "--contract", good},
+		"bad version":       {"postgres", "--contract", write("v2.json", `{"version":2,"table":"t","key_column":"k","key":"e","expect":{"a":"b"}}`)},
+		"unknown field":     {"postgres", "--contract", write("typo.json", `{"version":1,"table":"t","key_column":"k","key":"e","expects":{"a":"b"}}`)},
+		"sql in identifier": {"postgres", "--contract", write("inj.json", `{"version":1,"table":"t; DROP TABLE t","key_column":"k","key":"e","expect":{"a":"b"}}`)},
+		"no expectations":   {"postgres", "--contract", write("empty.json", `{"version":1,"table":"t","key_column":"k","key":"e","expect":{}}`)},
+		"no key":            {"postgres", "--contract", write("nokey.json", `{"version":1,"table":"t","key_column":"k","expect":{"a":"b"}}`)},
+		"timeout":           {"postgres", "--contract", good, "--timeout", "90s"},
+	}
+	for name, args := range cases {
+		if code, _, _ := runCLI(args...); code != exitInvalid {
+			t.Errorf("%s: got %d want 2", name, code)
+		}
+	}
+	t.Setenv(postgresURLEnv, "postgres://u:hunter2@[::1")
+	code, _, errOut := runCLI("postgres", "--contract", good)
+	if code != exitInvalid || strings.Contains(errOut, "hunter2") {
+		t.Fatalf("bad DSN: %d %q", code, errOut)
+	}
+}
