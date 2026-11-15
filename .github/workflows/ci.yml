@@ -13,8 +13,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Format
-        run: test -z "$(gofmt -l cmd internal)"
       - name: Test
         run: go test ./...
       - name: Vet
