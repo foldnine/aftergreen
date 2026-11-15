@@ -39,8 +39,9 @@ func run(args []string) int {
   }
   for _,r:=range results{if r.Status=="FAILED"{failed=true};if r.Status=="UNKNOWN"{unknown=true}}
   if failed{return 1};if unknown{return 3};return 0
+ case "http":return runHTTP(args[1:])
  case "version":fmt.Println("aftergreen dev (v0.1 preview)");return 0
  default:usage();return 2
  }
 }
-func usage(){fmt.Fprintln(os.Stderr,"Usage: aftergreen demo [--dir PATH] | check [--file PATH] [--json] | version")}
+func usage(){fmt.Fprintln(os.Stderr,"Usage: aftergreen demo [--dir PATH] | check [--file PATH] [--json] | http --url URL [--status 200] [--contains TEXT] [--timeout 10s] [--json] | version")}
