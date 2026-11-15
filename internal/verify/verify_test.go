@@ -40,3 +40,18 @@ func TestReadRejectsEmpty(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestReadRejectsUnknownFieldsAndTrailingData(t *testing.T) {
+	for _, data := range []string{
+		`{"events":[{"id":"a","observaton_available":true,"expected":{"x":"1"}}]}`,
+		`{"events":[{"id":"a","expected":{"x":"1"}}]} {"events":[]}`,
+	} {
+		p := filepath.Join(t.TempDir(), "e.json")
+		if err := os.WriteFile(p, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Read(p); err == nil {
+			t.Fatalf("accepted %s", data)
+		}
+	}
+}

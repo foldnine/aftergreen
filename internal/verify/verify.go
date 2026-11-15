@@ -3,6 +3,7 @@
 package verify
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,8 +34,15 @@ func Read(path string) (Input, error) {
 	if err != nil {
 		return in, err
 	}
-	if err = json.Unmarshal(b, &in); err != nil {
+	// Unknown fields are rejected: a misspelled "observation_available" must
+	// not silently turn into an unobserved (UNKNOWN) event.
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err = dec.Decode(&in); err != nil {
 		return in, fmt.Errorf("decode evidence: %w", err)
+	}
+	if dec.More() {
+		return in, errors.New("decode evidence: unexpected data after the JSON document")
 	}
 	if len(in.Events) == 0 {
 		return in, errors.New("evidence must include at least one event")

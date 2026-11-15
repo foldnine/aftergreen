@@ -4,47 +4,41 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
+	"io"
 	"time"
 
 	"github.com/foldnine/aftergreen/internal/httpcheck"
 )
 
-func runHTTP(args []string) int {
+func runHTTP(args []string, stdout, stderr io.Writer) int {
 	f := flag.NewFlagSet("http", flag.ContinueOnError)
-	endpoint := f.String("url", "", "HTTP endpoint to verify")
-	expectedStatus := f.Int("status", 200, "expected HTTP response status")
-	bodyContains := f.String("contains", "", "required literal substring in response body (optional)")
-	timeout := f.Duration("timeout", 10*time.Second, "request timeout (max 60s)")
+	endpoint := f.String("url", "", "maintainer-controlled http(s) URL to verify (required)")
+	expectedStatus := f.Int("status", 200, "expected HTTP status (redirects are not followed)")
+	bodyContains := f.String("contains", "", "literal text required in the response body (optional)")
+	timeout := f.Duration("timeout", 10*time.Second, "timeout for the whole request, 1s..60s")
 	jsonOutput := f.Bool("json", false, "emit machine-readable JSON verdict")
-	if err := f.Parse(args); err != nil {
-		return 2
+	if !parseFlags(f, args, stderr) {
+		return exitInvalid
 	}
-	if *endpoint == "" {
-		fmt.Fprintln(os.Stderr, "error: --url is required")
-		return 2
-	}
+	httpcheck.UserAgent = "aftergreen/" + version
 	verdict, err := httpcheck.Verify(context.Background(), httpcheck.Contract{
 		URL: *endpoint, ExpectedStatus: *expectedStatus, ExpectedBodySubstring: *bodyContains, Timeout: *timeout,
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return 2
+		fmt.Fprintln(stderr, "error: invalid HTTP check:", err)
+		return exitInvalid
 	}
 	if *jsonOutput {
-		fmt.Println(verdict.JSON())
+		fmt.Fprintln(stdout, verdict.JSON())
 	} else {
-		fmt.Printf("%s  HTTP outcome (%d)\n", verdict.Status, verdict.ObservedStatus)
+		observed := "no response"
+		if verdict.ObservedStatus != 0 {
+			observed = fmt.Sprintf("HTTP %d", verdict.ObservedStatus)
+		}
+		fmt.Fprintf(stdout, "%s  HTTP outcome (%s)\n", verdict.Status, observed)
 		for _, reason := range verdict.Reasons {
-			fmt.Println(" -", reason)
+			fmt.Fprintln(stdout, "  -", reason)
 		}
 	}
-	switch verdict.Status {
-	case "VERIFIED":
-		return 0
-	case "FAILED":
-		return 1
-	default:
-		return 3
-	}
+	return exitCode(verdict.Status)
 }
