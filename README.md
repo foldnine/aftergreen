@@ -2,25 +2,55 @@
 
 **Green isn't proof. Verify what actually happened.**
 
-AfterGreen is an experimental, local-first open-source outcome verification engine for automations. Built by [FoldNine](https://foldnine.dev).
+A green CI job or a "success" from an automation means the steps ran. It does
+not mean the outcome happened. AfterGreen independently observes the outcome
+and returns one of three verdicts:
 
-> **Preview:** This milestone compares local JSON observations against declared expectations. It does **not** connect to n8n, PostgreSQL, Gmail, or any other external service yet. Never treat workflow execution status as outcome proof.
+| Verdict | Meaning |
+| --- | --- |
+| `VERIFIED` | The observation succeeded and every assertion holds |
+| `FAILED` | The observation succeeded and an assertion is false |
+| `UNKNOWN` | The outcome could not be observed or trusted. Never treated as a pass |
 
-## Try it
+Built by [FoldNine](https://foldnine.dev). Apache-2.0.
 
-Requires Go 1.23+.
+> **Status: early preview.** No releases or binaries are published yet. Run it
+> from source with Go 1.26+.
+
+## What exists today
+
+| Capability | Where | Status |
+| --- | --- | --- |
+| HTTP deployment check (status + body text) | `aftergreen http` | works |
+| Local JSON evidence check | `aftergreen check` | works (demo/evaluation format) |
+| PostgreSQL destination check | `internal/postgres` Go package | library only, **not wired to the CLI**, tested with a fake driver only |
+| GitHub Action | [foldnine/aftergreen-action](https://github.com/foldnine/aftergreen-action) | preview, unreleased |
+
+Not built: n8n or other workflow-tool integrations, a hosted service, a UI,
+retries or scheduling.
+
+## Quick start
 
 ```bash
-go run ./cmd/aftergreen demo
-go run ./cmd/aftergreen check
+git clone https://github.com/foldnine/aftergreen && cd aftergreen
+go run ./cmd/aftergreen demo     # writes aftergreen-demo.json (synthetic data)
+go run ./cmd/aftergreen check    # exit 1: one FAILED, one UNKNOWN by design
 ```
 
-The demo produces an `aftergreen-demo.json` fixture. The check deliberately detects a mismatch and reports `FAILED`, so its exit status is **1**. If an outcome cannot be observed, it reports `UNKNOWN`; it never silently reports a pass.
+### Verify a deployment over HTTP
 
 ```bash
-go run ./cmd/aftergreen check --json
-go test ./...
+go run ./cmd/aftergreen http \
+  --url https://app.example.com/version \
+  --status 200 \
+  --contains "$GIT_COMMIT_SHA" \
+  --timeout 10s
 ```
+
+HTTP 200 alone does not prove the right version is live. A stale build or a
+maintenance page can return 200 too. Expose a unique build ID and assert it with
+`--contains`. Redirects are not followed. Bodies are read up to 1 MiB. See
+[docs/http-check.md](docs/http-check.md).
 
 ### Exit codes
 
@@ -28,20 +58,43 @@ go test ./...
 | --- | --- |
 | 0 | Every outcome verified |
 | 1 | At least one outcome failed |
-| 2 | Invalid input / usage |
+| 2 | Invalid input or usage; nothing was verified |
 | 3 | No failures, but at least one outcome unknown |
 
-### Evidence model
+## Local evidence format (`aftergreen check`)
 
-Each event includes a unique `id`, a reported `execution_status`, expected fields, observed fields, and an explicit `observation_available` flag. The engine sorts assertion keys for deterministic explanations. Missing observations result in `UNKNOWN`; missing or mismatched fields in available observations result in `FAILED`.
+```json
+{"events": [{
+  "id": "lead-sync-182",
+  "execution_status": "SUCCESS",
+  "observation_available": true,
+  "expected": {"status": "qualified"},
+  "actual":   {"status": "qualified"}
+}]}
+```
 
-**Security:** Do not put real secrets, tokens, customer PII, or private email contents in evidence files. Demo values are synthetic.
+Each event needs a unique `id` and at least one `expected` field. Unknown keys
+are rejected. `observation_available: false` (or missing) gives `UNKNOWN`. A
+missing or different `actual` field gives `FAILED`. This command **prints
+expected and observed values**, so don't put secrets or personal data in
+evidence files.
 
-## Roadmap
+## Design documents
 
-1. Deterministic local verification engine (this PR).
-2. Read-only PostgreSQL adapter with event correlation and restricted permissions.
-3. n8n ingestion adapter.
-4. Evidence timeline UI, redaction, and reproducible proof receipts.
+- [docs/http-check.md](docs/http-check.md): HTTP check semantics and security boundary
+- [docs/postgres-adapter.md](docs/postgres-adapter.md): PostgreSQL package (library)
+- [docs/adr/0001-action-engine.md](docs/adr/0001-action-engine.md): why the Action is standalone Node
+- [conformance/](conformance/): shared HTTP behaviour cases for the CLI and the Action
 
-Apache-2.0 licensing is planned, subject to the repository's actual license file and project governance decisions.
+## Development
+
+```bash
+gofmt -l . && go vet ./... && go test -race ./...
+```
+
+Tests use local fixtures only. See [CONTRIBUTING.md](CONTRIBUTING.md) and
+[SECURITY.md](SECURITY.md).
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).

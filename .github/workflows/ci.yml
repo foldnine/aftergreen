@@ -7,13 +7,37 @@ permissions:
   contents: read
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        go: [oldstable, stable]
+        include:
+          - os: macos-latest
+            go: stable
+          - os: windows-latest
+            go: stable
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          go-version-file: go.mod
-      - name: Test
-        run: go test ./...
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+      - name: gofmt
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l . | tee /dev/stderr)"
       - name: Vet
         run: go vet ./...
+      - name: Test (race)
+        if: runner.os == 'Linux'
+        run: go test -race -count=1 ./...
+      - name: Test
+        if: runner.os != 'Linux'
+        run: go test -count=1 ./...
+      - name: Build
+        run: go build -trimpath -o aftergreen-ci ./cmd/aftergreen
+      - name: Vulnerability check
+        if: runner.os == 'Linux' && matrix.go == 'stable'
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...

@@ -1,26 +1,45 @@
-# HTTP outcome verification (preview)
+# HTTP outcome verification
 
-Run an independent check *after* your deploy job reports success:
+Run an independent check *after* your deploy reports success:
 
 ```bash
-go run ./cmd/aftergreen http --url http://127.0.0.1:8080/health --status 200
-go run ./cmd/aftergreen http --url https://example.org/version --status 200 --contains abc123 --json
+go run ./cmd/aftergreen http --url http://127.0.0.1:8080/health
+go run ./cmd/aftergreen http --url https://app.example.com/version --status 200 --contains abc123 --json
 ```
 
-Exit codes: `0` verified, `1` assertion failed, `2` invalid input, `3` observation unavailable or inconclusive.
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--url` | required | Absolute `http`/`https` URL; no credentials, no `#fragment` |
+| `--status` | `200` | Expected status, 100–599 |
+| `--contains` | empty | Literal, case-sensitive, byte-exact text required in the body |
+| `--timeout` | `10s` | Whole request including body, `1s`–`60s` |
+| `--json` | off | Print `{"status", "reasons", "observed_status"}` |
 
-## What is checked
+Exit codes: `0` verified, `1` failed, `2` invalid input, `3` unknown.
 
-- GET response status equals the configured expected status.
-- An optional **literal** response-body substring appears in the response.
-- Transport failure, response-reading errors, or an oversized response produce **UNKNOWN**.
-- Redirects are **not followed**, so a redirect status cannot silently confirm the destination.
-- Timeout defaults to 10 seconds (max 60 seconds); body inspection is limited to 1 MiB.
+## Semantics
+
+These semantics are pinned by [`conformance/http/cases.json`](../conformance/http/cases.json).
+
+- One `GET`. **Redirects are not followed.** A redirect is observed as its 3xx
+  status. If you want it, assert it with `--status 302`.
+- Wrong status: **FAILED**, even if the body cannot be read.
+- `--contains` set: the body is read (decompressed) up to **1 MiB**.
+  - Text missing: FAILED.
+  - Body over 1 MiB, truncated, unreadable, or timed out: **UNKNOWN**.
+- No response (DNS, connection refused, TLS error, timeout): **UNKNOWN**.
+- `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` are honoured. TLS 1.2+ with
+  system roots is required.
+- No retries. No custom headers or authentication yet.
 
 ## Security and limitations
 
-Use this only for **trusted endpoints specified by repository maintainers**. The CLI performs network requests and is not a sandbox or an SSRF defense for untrusted URLs. Do not accept URL/hostname values directly from untrusted PR titles, issue content, or user-controlled input. Avoid protected internal endpoints and never place credentials inside URLs. The checker prints neither response bodies nor expected body values, to reduce accidental disclosure.
+Use this only for **trusted endpoints specified by repository maintainers**.
+It makes network requests from wherever it runs. It is not a sandbox and not
+an SSRF defence, and it does not block private or internal addresses. Never take
+URLs or hostnames from PR titles, branch names, issue content or other
+user-controlled input.
 
-HTTP 200 alone does not prove a successful deployment. Prefer a version endpoint (or an immutable deployment ID) with a matching `--contains` assertion. Body-substring checking is a starting point; JSON path/schema assertions belong to a later milestone.
-
-This feature is not yet published as a GitHub Action. Marketplace publication requires a separate public repository and a release.
+Never put credentials in URLs; they are rejected. If a URL needs a token in its
+query string, pass it from a secret. Output and errors never print the URL,
+the response body or the `--contains` value.
