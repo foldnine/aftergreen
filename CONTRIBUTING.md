@@ -11,6 +11,7 @@ Requires Go 1.26+.
 gofmt -l .                  # must print nothing
 go vet ./...
 go test -race ./...         # unit + HTTP conformance tests; no network, no database
+scripts/test-postgres.sh    # real PostgreSQL integration tests (needs Docker)
 ```
 
 ## Rules

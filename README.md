@@ -23,11 +23,11 @@ Built by [FoldNine](https://foldnine.dev). Apache-2.0.
 | --- | --- | --- |
 | HTTP deployment check (status + body text) | `aftergreen http` | works |
 | Local JSON evidence check | `aftergreen check` | works (demo/evaluation format) |
-| PostgreSQL destination check | `internal/postgres` Go package | library only, **not wired to the CLI**, tested with a fake driver only |
+| PostgreSQL destination check | `aftergreen postgres` | works; read-only, one validated query shape, tested against real PostgreSQL 17 |
 | GitHub Action | [foldnine/aftergreen-action](https://github.com/foldnine/aftergreen-action) | preview, unreleased |
 
-Not built: n8n or other workflow-tool integrations, a hosted service, a UI,
-retries or scheduling.
+Not built: n8n or other workflow-tool integrations, other databases, a hosted
+service, a UI, retries or scheduling.
 
 ## Quick start
 
@@ -51,6 +51,17 @@ HTTP 200 alone does not prove the right version is live. A stale build or a
 maintenance page can return 200 too. Expose a unique build ID and assert it with
 `--contains`. Redirects are not followed. Bodies are read up to 1 MiB. See
 [docs/http-check.md](docs/http-check.md).
+
+### Verify a database write
+
+```bash
+export AFTERGREEN_POSTGRES_URL='postgres://aftergreen_reader@db:5432/app?sslmode=verify-full'
+go run ./cmd/aftergreen postgres --contract examples/postgres-contract.json --key "$DEPLOY_ID"
+```
+
+AfterGreen runs one read-only, parameterized `SELECT` that it builds itself.
+It never runs SQL from configuration. Use a `SELECT`-only role. See
+[docs/postgres.md](docs/postgres.md).
 
 ### Exit codes
 
@@ -82,7 +93,7 @@ evidence files.
 ## Design documents
 
 - [docs/http-check.md](docs/http-check.md): HTTP check semantics and security boundary
-- [docs/postgres-adapter.md](docs/postgres-adapter.md): PostgreSQL package (library)
+- [docs/postgres.md](docs/postgres.md): PostgreSQL contract, exact SQL, least-privilege role
 - [docs/adr/0001-action-engine.md](docs/adr/0001-action-engine.md): why the Action is standalone Node
 - [conformance/](conformance/): shared HTTP behaviour cases for the CLI and the Action
 
@@ -92,7 +103,8 @@ evidence files.
 gofmt -l . && go vet ./... && go test -race ./...
 ```
 
-Tests use local fixtures only. See [CONTRIBUTING.md](CONTRIBUTING.md) and
+Tests use local fixtures only. PostgreSQL integration tests:
+`scripts/test-postgres.sh` (Docker). See [CONTRIBUTING.md](CONTRIBUTING.md) and
 [SECURITY.md](SECURITY.md).
 
 ## License
