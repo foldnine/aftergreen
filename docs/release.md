@@ -9,17 +9,36 @@ Every step marked *owner* needs explicit approval.
 
 | Trigger | Result |
 | --- | --- |
-| PR touching the release workflow or build script, or manual dispatch | Dry run: test, build all targets, smoke-test the linux/amd64 binary, upload a workflow artifact. Nothing is published. |
-| Owner pushes a `vX.Y.Z` tag | Same build, plus SLSA build provenance attestation (Sigstore, via `actions/attest-build-provenance`) and a **draft** GitHub Release. A human publishes it. |
+| PR touching the release workflow or build script, or manual dispatch (on any ref, including a tag) | Dry run: test, build all targets, smoke-test the linux/amd64 binary, upload a workflow artifact. Nothing is attested or published. |
+| Owner pushes a `vX.Y.Z` tag on a commit that is on `main` | Same build, plus SLSA build provenance attestation (Sigstore, via `actions/attest-build-provenance`) and a **draft** GitHub Release. A human publishes it. Tags on other commits fail. |
 
 Build properties (`scripts/build-release.sh`):
 
 - Targets: linux, darwin and windows, each for amd64 and arm64. `CGO_ENABLED=0`, static, no system dependencies.
 - Toolchain: latest patch of the `go` version in `go.mod` (`check-latest`), and no build cache.
-- `-trimpath -buildvcs=true -ldflags "-s -w -buildid= -X main.version=<tag>"`.
-- Deterministic archives (sorted entries, fixed mtime/owner, `gzip -n`, `zip -X`). Two local builds of the same commit produce identical `SHA256SUMS`.
+- `-trimpath -buildvcs=false -ldflags "-s -w -buildid= -X main.version=<tag>"`. No VCS stamps, so the output doesn't depend on how the source was checked out.
+- Deterministic archives: sorted entries, fixed mtime (last commit time, or `SOURCE_DATE_EPOCH`), fixed owner and modes, `umask 022`, `TZ=UTC`, `gzip -n`, `zip -X`.
+- `BUILDINFO` records the version and the exact Go toolchain. It is covered by `SHA256SUMS`.
 - `SHA256SUMS` covers every archive. The provenance attestation covers the same subjects.
 - All workflow actions are pinned to full commit SHAs.
+
+## Reproducing a build
+
+Output depends only on the source commit, the version string and the Go
+toolchain in `BUILDINFO`. Checked on 2026-11-16 for one commit: a git worktree
+(UTC, umask 022) and a `git archive` tarball without `.git` (America/New_York,
+umask 077, `SOURCE_DATE_EPOCH` set to the commit time) produced byte-identical
+`SHA256SUMS`.
+
+```bash
+git clone https://github.com/foldnine/aftergreen && cd aftergreen && git checkout v0.1.0
+GOTOOLCHAIN=go1.26.11 scripts/build-release.sh v0.1.0 /tmp/ag-dist   # Go version from BUILDINFO
+diff /tmp/ag-dist/SHA256SUMS SHA256SUMS                               # the published file
+```
+
+Needs GNU tar, gzip, Info-ZIP zip and sha256sum (any Linux runner).
+The gzip and zip implementations must match for byte-identical archives; the
+binaries inside are reproducible regardless.
 
 ## Verifying a release (for users, once one exists)
 
