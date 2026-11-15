@@ -421,6 +421,17 @@
       }
     },
     {
+      "name": "invalid-url-port-out-of-range",
+      "url": "http://127.0.0.1:65536/",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
       "name": "invalid-status-too-low",
       "url": "https://example.invalid/",
       "contract": {

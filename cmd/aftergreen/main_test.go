@@ -61,6 +61,7 @@ func TestInvalidUsage(t *testing.T) {
 		{}, {"nope"}, {"check", "--file", "/does/not/exist.json"}, {"check", "stray"},
 		{"http"}, {"http", "--url", "https://u:p@example.invalid/"}, {"http", "--url", "http://x.invalid", "--timeout", "0s"},
 		{"http", "--url", "http://x.invalid", "--status", "abc"},
+		{"http", "--url", "http://x.invalid", "--status", "0200"}, {"http", "--url", "http://x.invalid", "--status", "0x0C8"},
 	} {
 		if code, _, _ := runCLI(args...); code != exitInvalid {
 			t.Errorf("%v: got %d want 2", args, code)
