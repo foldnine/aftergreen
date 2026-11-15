@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -71,6 +72,11 @@ func (c Contract) Validate() (*url.URL, error) {
 	}
 	if parsed.Hostname() == "" {
 		return nil, errors.New("URL must include a host")
+	}
+	if port := parsed.Port(); port != "" {
+		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+			return nil, errors.New("URL port must be between 1 and 65535")
+		}
 	}
 	if parsed.User != nil {
 		return nil, errors.New("URL must not contain credentials; credentials in URLs leak into logs")
