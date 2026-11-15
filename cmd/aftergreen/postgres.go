@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -40,6 +41,14 @@ func runPostgres(args []string, stdout, stderr io.Writer) int {
 	file, err := postgres.LoadFile(*contractPath)
 	if err != nil {
 		fmt.Fprintln(stderr, "error: invalid contract:", err)
+		return exitInvalid
+	}
+	keySet := false
+	f.Visit(func(fl *flag.Flag) { keySet = keySet || fl.Name == "key" })
+	if keySet && strings.TrimSpace(*key) == "" {
+		// An empty --key usually means an unset CI variable. Falling back to the
+		// contract's key could verify a stale row, so refuse instead.
+		fmt.Fprintln(stderr, "error: --key was given but is empty (is the event/deploy ID variable set?)")
 		return exitInvalid
 	}
 	contract := file.Contract(*key)

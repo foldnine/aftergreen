@@ -3,7 +3,6 @@
   "schema": "public",
   "table": "deploys",
   "key_column": "deploy_id",
-  "key": "run-1001",
   "expect": {
     "version": "v1.4.2",
     "state": "live"

@@ -107,6 +107,8 @@ func TestPostgresInvalidInput(t *testing.T) {
 		"no expectations":   {"postgres", "--contract", write("empty.json", `{"version":1,"table":"t","key_column":"k","key":"e","expect":{}}`)},
 		"no key":            {"postgres", "--contract", write("nokey.json", `{"version":1,"table":"t","key_column":"k","expect":{"a":"b"}}`)},
 		"timeout":           {"postgres", "--contract", good, "--timeout", "90s"},
+		"empty --key":       {"postgres", "--contract", good, "--key", ""},
+		"blank --key":       {"postgres", "--contract", good, "--key", "  "},
 	}
 	for name, args := range cases {
 		if code, _, _ := runCLI(args...); code != exitInvalid {

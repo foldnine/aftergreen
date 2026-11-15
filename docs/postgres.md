@@ -19,7 +19,6 @@ Exit codes: `0` verified, `1` failed, `2` invalid input, `3` unknown.
   "schema": "public",
   "table": "deploys",
   "key_column": "deploy_id",
-  "key": "run-1001",
   "expect": { "version": "v1.4.2", "state": "live" }
 }
 ```
@@ -29,7 +28,7 @@ Exit codes: `0` verified, `1` failed, `2` invalid input, `3` unknown.
 | `version` | yes | Must be `1` |
 | `schema` | no | Default `public` |
 | `table`, `key_column` | yes | Destination table and the column holding your stable event/deploy ID |
-| `key` | yes, unless `--key` is given | Event ID to look up; `--key` overrides it |
+| `key` | yes, unless `--key` is given | Event ID to look up. Prefer `--key` from CI; a fixed `key` is only for one-off checks. An explicitly empty `--key` is rejected (exit 2) rather than falling back to the file. |
 | `expect` | yes, ≥ 1 | Column → expected value, compared as PostgreSQL `text` |
 
 Unknown fields are rejected. The connection string is **only** read from
