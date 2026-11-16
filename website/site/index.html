@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AfterGreen — Post-deployment verification. Green isn’t proof.</title>
+  <meta name="description" content="AfterGreen is an open-source CLI and GitHub Action for post-deployment verification. It checks the observable outcome of a deploy over HTTP or PostgreSQL and returns VERIFIED, FAILED or UNKNOWN.">
+  <link rel="canonical" href="https://aftergreen.foldnine.dev/">
+  <meta name="theme-color" content="#101416">
+  <meta name="color-scheme" content="light">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/icon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="AfterGreen">
+  <meta property="og:url" content="https://aftergreen.foldnine.dev/">
+  <meta property="og:title" content="AfterGreen — Green isn’t proof.">
+  <meta property="og:description" content="Your pipeline says success. AfterGreen checks whether the expected outcome actually happened. Open-source post-deployment verification for HTTP and PostgreSQL.">
+  <meta property="og:image" content="https://aftergreen.foldnine.dev/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="AfterGreen logo with the line: Green isn’t proof. Verify what actually happened.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="AfterGreen — Green isn’t proof.">
+  <meta name="twitter:description" content="Open-source post-deployment verification. Checks the observable outcome of a deploy and returns VERIFIED, FAILED or UNKNOWN.">
+  <meta name="twitter:image" content="https://aftergreen.foldnine.dev/og.png">
+  <meta name="twitter:image:alt" content="AfterGreen logo with the line: Green isn’t proof. Verify what actually happened.">
+
+  <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles/site.css">
+  <script src="/scripts/copy.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://aftergreen.foldnine.dev/#website",
+        "url": "https://aftergreen.foldnine.dev/",
+        "name": "AfterGreen",
+        "inLanguage": "en",
+        "publisher": { "@id": "https://foldnine.dev/#organization" }
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "@id": "https://aftergreen.foldnine.dev/#software",
+        "name": "AfterGreen",
+        "description": "Open-source post-deployment verification. Checks the observable outcome of a deployment over HTTP or PostgreSQL and returns VERIFIED, FAILED or UNKNOWN.",
+        "url": "https://aftergreen.foldnine.dev/",
+        "codeRepository": "https://github.com/foldnine/aftergreen",
+        "programmingLanguage": "Go",
+        "runtimePlatform": "Go 1.26+",
+        "license": "https://www.apache.org/licenses/LICENSE-2.0",
+        "author": { "@id": "https://foldnine.dev/#organization" }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://foldnine.dev/#organization",
+        "name": "FoldNine",
+        "url": "https://foldnine.dev/"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="masthead">
+    <div class="wrap masthead__row">
+      <a class="masthead__logo" href="/" aria-label="AfterGreen home">
+        <img src="/assets/aftergreen-light.svg" alt="AfterGreen" width="675" height="190">
+      </a>
+      <nav class="masthead__nav" aria-label="Sections">
+        <ul>
+          <li class="nav-section"><a href="#problem">Problem</a></li>
+          <li class="nav-section"><a href="#verdicts">Verdicts</a></li>
+          <li class="nav-section"><a href="#how">How it works</a></li>
+          <li class="nav-section"><a href="#action">GitHub Action</a></li>
+          <li><a href="https://github.com/foldnine/aftergreen">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap hero__grid">
+        <div class="hero__copy">
+          <p class="kicker">Post-deployment verification <span aria-hidden="true">·</span> Open source <span aria-hidden="true">·</span> Early preview</p>
+          <h1 id="hero-title">Green isn’t proof.</h1>
+          <p class="hero__lede">Your pipeline says success. AfterGreen checks whether the expected outcome actually happened.</p>
+          <div class="actions">
+            <a class="btn btn--primary" href="https://github.com/foldnine/aftergreen">Explore the CLI</a>
+            <a class="btn btn--secondary" href="https://github.com/foldnine/aftergreen-action">GitHub Action</a>
+          </div>
+        </div>
+
+        <figure class="evidence" aria-labelledby="evidence-caption">
+          <div class="evidence__panel">
+            <p class="evidence__head"><span>deploy → production</span><span>Illustration</span></p>
+
+            <dl class="evidence__group evidence__group--reported">
+              <dt class="evidence__label">Reported by CI</dt>
+              <dd>
+                <dl class="evidence__rows">
+                  <div><dt>Deployment</dt><dd class="t-green">SUCCESS</dd></div>
+                </dl>
+              </dd>
+            </dl>
+
+            <dl class="evidence__group evidence__group--observed">
+              <dt class="evidence__label">Observed by AfterGreen</dt>
+              <dd>
+                <dl class="evidence__rows">
+                  <div><dt>HTTP status</dt><dd>200</dd></div>
+                  <div><dt>Expected build</dt><dd>a82f19c</dd></div>
+                  <div><dt>Served build</dt><dd class="t-coral">73bc011</dd></div>
+                </dl>
+              </dd>
+            </dl>
+
+            <p class="evidence__verdict"><span>AfterGreen</span><strong>FAILED</strong></p>
+          </div>
+          <figcaption id="evidence-caption">Illustrative example, not output from a real deployment. The workflow reports success and the endpoint answers 200, but the build it serves is not the one that was deployed.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 01 Problem -->
+    <section class="section" id="problem" aria-labelledby="problem-title">
+      <div class="wrap section__grid">
+        <p class="section__num" aria-hidden="true">01</p>
+        <div class="section__body">
+          <h2 id="problem-title">A successful workflow is not a successful deployment.</h2>
+          <p class="lede">A green pipeline confirms that the automation ran to completion. It says nothing about what users are now being served or what the database now contains.</p>
+
+          <table class="contrast-table">
+            <caption class="visually-hidden">What automation reports compared with what can still be true</caption>
+            <thead>
+              <tr><th scope="col">The automation reports</th><th scope="col">What can still be true</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row"><span class="mono">deploy</span> succeeded</th><td>The application is still serving the previous version: a rollout that never switched traffic, a stale cache, the wrong target.</td></tr>
+              <tr><th scope="row">Endpoint returns <span class="mono">200</span></th><td>The 200 comes from an old build or a maintenance page. A status code does not identify a release.</td></tr>
+              <tr><th scope="row">Database job completed</th><td>The row it was meant to write is missing or holds the wrong values.</td></tr>
+            </tbody>
+          </table>
+
+          <p>AfterGreen does not read your pipeline’s status. It observes the outcome directly — the response at a URL, a row in a table — and compares it with what you expected.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 Verdicts -->
+    <section class="section section--dark" id="verdicts" aria-labelledby="verdicts-title">
+      <div class="wrap section__grid">
+        <p class="section__num" aria-hidden="true">02</p>
+        <div class="section__body">
+          <h2 id="verdicts-title">Three verdicts. No implied success.</h2>
+          <p class="lede">Every check ends in exactly one explicit verdict, printed as a word and returned as an exit code.</p>
+
+          <ol class="verdicts">
+            <li class="verdict verdict--verified">
+              <p class="verdict__word">VERIFIED</p>
+              <p class="verdict__exit">exit 0</p>
+              <p>The expected outcome was observed and every assertion holds.</p>
+            </li>
+            <li class="verdict verdict--failed">
+              <p class="verdict__word">FAILED</p>
+              <p class="verdict__exit">exit 1</p>
+              <p>The outcome was observed and it contradicts what was expected.</p>
+            </li>
+            <li class="verdict verdict--unknown">
+              <p class="verdict__word">UNKNOWN</p>
+              <p class="verdict__exit">exit 3</p>
+              <p>The outcome could not be reliably observed: no response, a timeout, a truncated body.</p>
+            </li>
+          </ol>
+
+          <p class="callout"><strong>UNKNOWN is never treated as success.</strong> If AfterGreen cannot see the outcome, it does not claim it. In the GitHub Action, UNKNOWN fails the step just as FAILED does.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 How it works -->
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="wrap section__grid">
+        <p class="section__num" aria-hidden="true">03</p>
+        <div class="section__body">
+          <h2 id="how-title">How it works</h2>
+
+          <div class="split">
+            <ol class="steps">
+              <li><strong>Deploy your application.</strong> However you deploy today. AfterGreen runs after it, from CI or a terminal.</li>
+              <li><strong>Define the expected outcome.</strong> For HTTP: a status code and text that only the new release serves, such as its commit SHA on a version endpoint.</li>
+              <li><strong>Run AfterGreen.</strong> One <span class="mono">GET</span>. Redirects are not followed. The body is read up to 1&nbsp;MiB. No retries.</li>
+              <li><strong>Receive an explicit verdict.</strong> VERIFIED, FAILED or UNKNOWN, with the reason and a matching exit code your pipeline can act on.</li>
+            </ol>
+
+            <div class="code-stack">
+              <div class="code">
+                <p class="code__title"><span id="cmd-title">Verify a deployment over HTTP</span></p>
+                <pre data-copy tabindex="0" aria-labelledby="cmd-title"><code>go run ./cmd/aftergreen http \
+  --url https://app.example.com/version \
+  --status 200 \
+  --contains "$GIT_COMMIT_SHA" \
+  --timeout 10s</code></pre>
+              </div>
+              <div class="code code--output">
+                <p class="code__title"><span id="out-title">Output when the old build is still live</span></p>
+                <pre tabindex="0" aria-labelledby="out-title"><code><span class="t-coral">FAILED</span>  HTTP outcome (HTTP 200)
+  - response body did not contain the expected text
+<span class="t-slate">$ echo $?</span>
+1</code></pre>
+              </div>
+              <p class="note">Run from a clone of the repository with Go 1.26 or later. No prebuilt binaries are published yet. Output never prints the URL, the response body or the expected text.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 Capabilities -->
+    <section class="section section--rule" id="capabilities" aria-labelledby="cap-title">
+      <div class="wrap section__grid">
+        <p class="section__num" aria-hidden="true">04</p>
+        <div class="section__body">
+          <h2 id="cap-title">What exists today</h2>
+          <p class="lede">AfterGreen is deliberately small. These are the checks that ship in the repository now; nothing on this page is planned work.</p>
+
+          <div class="caps">
+            <article class="cap">
+              <h3>HTTP verification</h3>
+              <p class="cap__cmd mono">aftergreen http</p>
+              <p>Checks the response status and, optionally, literal text in the body. Use a unique build ID so a stale release cannot pass.</p>
+              <p class="cap__where">CLI and GitHub Action</p>
+            </article>
+            <article class="cap">
+              <h3>PostgreSQL verification</h3>
+              <p class="cap__cmd mono">aftergreen postgres</p>
+              <p>Confirms that the row an automation claims to have written exists with the expected values. One read-only, parameterized <span class="mono">SELECT</span> that AfterGreen builds itself; it never runs SQL from configuration.</p>
+              <p class="cap__where">CLI only</p>
+            </article>
+            <article class="cap">
+              <h3>Local evidence verification</h3>
+              <p class="cap__cmd mono">aftergreen check</p>
+              <p>Evaluates a JSON evidence file of expected and actual values and returns a verdict per event. A demo and evaluation format.</p>
+              <p class="cap__where">CLI only</p>
+            </article>
+            <article class="cap">
+              <h3>GitHub Actions integration</h3>
+              <p class="cap__cmd mono">foldnine/aftergreen-action</p>
+              <p>Runs the HTTP check inside a workflow, with no dependencies and no token. Kept in step with the CLI by shared conformance tests.</p>
+              <p class="cap__where">HTTP checks only</p>
+            </article>
+          </div>
+
+          <section class="table-scroll" tabindex="0" aria-labelledby="matrix-caption">
+            <table class="matrix">
+              <caption id="matrix-caption">Where each check runs</caption>
+              <thead>
+                <tr><th scope="col">Check</th><th scope="col">Go CLI</th><th scope="col">GitHub Action</th></tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">HTTP status and body text</th><td>Yes</td><td>Yes</td></tr>
+                <tr><th scope="row">PostgreSQL row state</th><td>Yes</td><td>No</td></tr>
+                <tr><th scope="row">Local JSON evidence</th><td>Yes</td><td>No</td></tr>
+              </tbody>
+            </table>
+          </section>
+          <p class="note">Not built: other databases, workflow-tool integrations, a hosted service, a UI, retries or scheduling.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 GitHub Action -->
+    <section class="section section--dark" id="action" aria-labelledby="action-title">
+      <div class="wrap section__grid">
+        <p class="section__num" aria-hidden="true">05</p>
+        <div class="section__body">
+          <h2 id="action-title">GitHub Actions deployment verification</h2>
+          <p class="lede">Add one step after your deploy. The job only stays green if the deployed endpoint really serves the new build.</p>
+
+          <div class="split split--action">
+            <div class="code code--dark">
+              <p class="code__title"><span id="yaml-title">.github/workflows/deploy.yml</span></p>
+              <pre data-copy tabindex="0" aria-labelledby="yaml-title"><code>jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # ... your deploy steps ...
+      - name: Verify the deployed build is live
+        id: aftergreen
+        # No release yet: pin a full commit SHA.
+        uses: foldnine/aftergreen-action@13d5dc2f86e766511b67b478079d4b44100e1633
+        with:
+          url: https://app.example.com/version
+          expected-status: '200'
+          contains: ${{ github.sha }}
+          timeout-seconds: '10'</code></pre>
+            </div>
+
+            <div class="action-notes">
+              <table class="outcomes">
+                <caption>Effect on the workflow</caption>
+                <thead><tr><th scope="col">Verdict</th><th scope="col">Step</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">VERIFIED</th><td>succeeds</td></tr>
+                  <tr><th scope="row">FAILED</th><td>fails the job</td></tr>
+                  <tr><th scope="row">UNKNOWN</th><td>fails the job</td></tr>
+                  <tr><th scope="row">Invalid inputs</th><td>fails, no verdict</td></tr>
+                </tbody>
+              </table>
+              <p>Outputs <span class="mono">verdict</span> and <span class="mono">observed-status</span> are available to later steps. To react to a verdict instead of stopping, set <span class="mono">continue-on-error: true</span> and read <span class="mono">steps.aftergreen.outputs.verdict</span>.</p>
+              <p>The Action has no release, version tag or Marketplace listing yet. The SHA above is the current <span class="mono">main</span> of the Action repository.</p>
+              <a class="btn btn--light" href="https://github.com/foldnine/aftergreen-action">View the Action on GitHub</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 Open source -->
+    <section class="section" id="open-source" aria-labelledby="oss-title">
+      <div class="wrap section__grid">
+        <p class="section__num" aria-hidden="true">06</p>
+        <div class="section__body">
+          <h2 id="oss-title">Open source, early preview</h2>
+          <div class="split">
+            <div>
+              <p class="lede">AfterGreen is an open-source engineering tool built by FoldNine, licensed under Apache-2.0. The verdict semantics are the product: a behaviour change needs a test that shows why.</p>
+              <dl class="status">
+                <div><dt>CLI</dt><dd>No published release or prebuilt binaries yet. Run from source with Go 1.26+.</dd></div>
+                <div><dt>GitHub Action</dt><dd>No release or Marketplace listing yet. Pin a full commit SHA.</dd></div>
+                <div><dt>License</dt><dd>Apache-2.0</dd></div>
+              </dl>
+            </div>
+            <ul class="links">
+              <li><a href="https://github.com/foldnine/aftergreen"><span>Main repository</span><span class="mono">foldnine/aftergreen</span></a></li>
+              <li><a href="https://github.com/foldnine/aftergreen-action"><span>GitHub Action</span><span class="mono">foldnine/aftergreen-action</span></a></li>
+              <li><a href="https://github.com/foldnine/aftergreen/tree/main/docs"><span>Documentation</span><span class="mono">docs/</span></a></li>
+              <li><a href="https://github.com/foldnine/aftergreen/blob/main/LICENSE"><span>License</span><span class="mono">Apache-2.0</span></a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__row">
+      <div class="footer__brand">
+        <img src="/assets/aftergreen-on-dark.svg" alt="AfterGreen" width="675" height="190" loading="lazy">
+        <p>Built by <a href="https://foldnine.dev/">FoldNine</a>.</p>
+      </div>
+      <nav aria-label="Footer">
+        <ul>
+          <li><a href="https://github.com/foldnine/aftergreen">GitHub</a></li>
+          <li><a href="https://github.com/foldnine/aftergreen-action">GitHub Action</a></li>
+          <li><a href="https://github.com/foldnine/aftergreen/tree/main/docs">Documentation</a></li>
+          <li><a href="https://foldnine.dev/">FoldNine</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
