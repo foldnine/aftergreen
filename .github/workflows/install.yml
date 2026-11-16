@@ -42,7 +42,7 @@ jobs:
         run: cmp scripts/install.sh website/site/install.sh
       - name: Formula matches the published release checksums
         run: |
-          tag="$(sed -n 's/^  version "\(.*\)"$/v\1/p' packaging/homebrew/aftergreen.rb)"
+          tag="$(sed -n 's|.*/releases/download/\(v[0-9.]*\)/.*|\1|p' packaging/homebrew/aftergreen.rb | head -n 1)"
           curl -fsSL --proto '=https' -o "$RUNNER_TEMP/SHA256SUMS" \
             "https://github.com/foldnine/aftergreen/releases/download/$tag/SHA256SUMS"
           packaging/homebrew/render-formula.sh "$tag" "$RUNNER_TEMP/SHA256SUMS" | diff -u packaging/homebrew/aftergreen.rb -

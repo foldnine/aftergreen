@@ -22,7 +22,6 @@ cat <<RUBY
 class Aftergreen < Formula
   desc "Post-deployment verification: VERIFIED, FAILED or UNKNOWN"
   homepage "https://aftergreen.foldnine.dev"
-  version "${tag#v}"
   license "Apache-2.0"
 
   on_macos do

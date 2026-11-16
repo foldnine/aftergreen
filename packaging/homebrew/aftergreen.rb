@@ -3,7 +3,6 @@
 class Aftergreen < Formula
   desc "Post-deployment verification: VERIFIED, FAILED or UNKNOWN"
   homepage "https://aftergreen.foldnine.dev"
-  version "0.1.0"
   license "Apache-2.0"
 
   on_macos do
