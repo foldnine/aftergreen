@@ -1,0 +1,25 @@
+// The AfterGreen website: a Worker with static assets only (no "main", no
+// code), the same shape as foldnine.dev but a separate Worker.
+//
+// Deploy from this directory:  npx wrangler deploy
+{
+  "name": "aftergreen-site",
+  "compatibility_date": "2026-11-01",
+
+  // site/ is served as-is. _headers is configuration and is not served.
+  "assets": {
+    "directory": "./site",
+    "not_found_handling": "404-page"
+  },
+
+  // A Worker custom domain: on first deploy Cloudflare creates the proxied
+  // DNS record for this hostname only and issues its certificate. No other
+  // record in the foldnine.dev zone is touched.
+  "routes": [
+    { "pattern": "aftergreen.foldnine.dev", "custom_domain": true }
+  ],
+
+  // One public address. No workers.dev copy and no per-version preview URLs.
+  "workers_dev": false,
+  "preview_urls": false
+}

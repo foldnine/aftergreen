@@ -1,0 +1,35 @@
+name: Website
+# Checks website/ as it will be served: valid HTML, scripts parse, the logo
+# copies still match brand/, and wrangler accepts the config. Deploying stays a
+# manual `npx wrangler deploy` from website/; nothing here needs a secret.
+on:
+  pull_request:
+    paths: ['website/**', 'brand/**', '.github/workflows/website.yml']
+  push:
+    branches: [main]
+    paths: ['website/**', 'brand/**', '.github/workflows/website.yml']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: html-validate
+        run: npx --yes html-validate@11.21.1 site/*.html
+      - name: Scripts parse
+        run: find site/scripts -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Brand assets match brand/
+        run: |
+          cmp site/assets/aftergreen-light.svg ../brand/logo/aftergreen-light.svg
+          cmp site/assets/aftergreen-on-dark.svg ../brand/logo/aftergreen-on-dark.svg
+          cmp site/favicon.svg ../brand/logo/aftergreen-icon.svg
+          cmp site/og.png ../brand/assets/github-social-preview.png
+      - name: wrangler deploy --dry-run
+        run: npx --yes wrangler@4.162.0 deploy --dry-run
