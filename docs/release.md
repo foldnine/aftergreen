@@ -1,7 +1,7 @@
 # Release plan (core CLI)
 
-Status: **prepared, not executed.** No tags, releases or binaries exist yet.
-Every step marked *owner* needs explicit approval.
+Status: **v0.1.0 published** on 2026-11-16 as a pre-release, with immutable
+releases enabled. Every step marked *owner* needs explicit approval.
 
 ## What the pipeline does
 
@@ -40,15 +40,14 @@ Needs GNU tar, gzip, Info-ZIP zip and sha256sum (any Linux runner).
 The gzip and zip implementations must match for byte-identical archives; the
 binaries inside are reproducible regardless.
 
-## Verifying a release (for users, once one exists)
+## Verifying a release (for users)
 
 ```bash
 sha256sum --ignore-missing -c SHA256SUMS
 gh attestation verify aftergreen_v0.1.0_linux_amd64.tar.gz --repo foldnine/aftergreen
 ```
 
-Until a release is published, the only supported install is from source:
-`go run ./cmd/aftergreen` or `go build ./cmd/aftergreen`.
+Install methods for users, all built on the release assets: [install.md](install.md).
 
 ## Steps (owner)
 
@@ -60,21 +59,43 @@ Until a release is published, the only supported install is from source:
 4. Review the draft release. Download one archive and verify its checksum and
    attestation as above. Then publish.
 
+5. After publishing, follow [After a release is published](#after-a-release-is-published).
+
 Rollback: never re-tag. Mark the release as not recommended in its notes,
 publish `v0.1.1`, and publish a security advisory if needed.
+
+## After a release is published
+
+The install paths read the release assets by name
+(`aftergreen_vX.Y.Z_<os>_<arch>.tar.gz|zip` and `SHA256SUMS`). Keep those names.
+
+1. `scripts/install.sh` needs no change: by default it installs the newest
+   published release.
+2. Replace the old version in the pinned places: `docs/install.md`,
+   `website/site/index.html` (see `website/README.md`), the Windows job in
+   `.github/workflows/install.yml`, and the pinned-version step in the same
+   workflow.
+3. Regenerate the Homebrew formula and open a PR to the tap (once it exists):
+
+   ```bash
+   gh release download vX.Y.Z -R foldnine/aftergreen -p SHA256SUMS -D /tmp/ag
+   packaging/homebrew/render-formula.sh vX.Y.Z /tmp/ag/SHA256SUMS > packaging/homebrew/aftergreen.rb
+   ```
+
+   CI fails if the committed formula doesn't match the release's checksums.
+4. Run the Install workflow (`workflow_dispatch`) and deploy the website.
 
 ## Proposed for later (not done)
 
 - Keyless cosign signatures of `SHA256SUMS`. The attestation already gives
   Sigstore-backed provenance; add cosign only if users ask for it.
-- Homebrew tap or `go install` docs (`go install` works today from a tag,
-  without injected version info).
+- Publishing the Homebrew tap: see [packaging/homebrew/README.md](../packaging/homebrew/README.md).
 - Switching the GitHub Action to verified binaries (see ADR 0001).
 
 ## Supported platforms
 
 | OS | Arch | Status |
 | --- | --- | --- |
-| Linux | amd64, arm64 | built; amd64 smoke-tested in CI |
-| macOS | amd64, arm64 | built; tests run in CI on macOS (arm64 runner) |
-| Windows | amd64, arm64 | built; tests run in CI on Windows amd64 |
+| Linux | amd64, arm64 | built; amd64 smoke-tested in the release build; both installed from the release by the Install workflow, plus Alpine (musl, busybox) |
+| macOS | amd64, arm64 | built; tests run in CI on macOS (arm64 runner); both installed by script and Homebrew formula in the Install workflow |
+| Windows | amd64, arm64 | built; tests run in CI on Windows amd64; both downloaded, verified and run by the Install workflow |
