@@ -1,4 +1,9 @@
-# AfterGreen
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/logo/aftergreen-on-dark.svg">
+    <img src="brand/logo/aftergreen-light.svg" alt="AfterGreen" width="340">
+  </picture>
+</h1>
 
 **Green isn't proof. Verify what actually happened.**
 

@@ -1,0 +1,26 @@
+{
+  "name": "AfterGreen",
+  "source": "Approved AfterGreen identity, 2026-11-15",
+  "colors": {
+    "charcoal": "#101416",
+    "ivory": "#F5F4EF",
+    "signalGreen": "#B5F36C",
+    "incidentCoral": "#F27964",
+    "slate": "#899397"
+  },
+  "typography": {
+    "sans": "Inter",
+    "mono": "JetBrains Mono"
+  },
+  "tokens": {
+    "background": "charcoal",
+    "surface": "ivory",
+    "reportedStatus": "signalGreen",
+    "observedOutcome": "incidentCoral",
+    "secondaryText": "slate"
+  },
+  "usage": {
+    "signalGreen": "Never as text on ivory or other light surfaces (contrast 1.2:1).",
+    "slate": "Text only on charcoal (5.9:1). On ivory it is decorative only (2.9:1, below WCAG AA)."
+  }
+}
