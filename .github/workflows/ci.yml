@@ -7,13 +7,64 @@ permissions:
   contents: read
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        go: [oldstable, stable]
+        include:
+          - os: macos-latest
+            go: stable
+          - os: windows-latest
+            go: stable
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          go-version-file: go.mod
-      - name: Test
-        run: go test ./...
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+      - name: gofmt
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l . | tee /dev/stderr)"
       - name: Vet
         run: go vet ./...
+      - name: Test (race)
+        if: runner.os == 'Linux'
+        run: go test -race -count=1 ./...
+      - name: Test
+        if: runner.os != 'Linux'
+        run: go test -count=1 ./...
+      - name: Build
+        run: go build -trimpath -o aftergreen-ci ./cmd/aftergreen
+      - name: Vulnerability check
+        if: runner.os == 'Linux' && matrix.go == 'stable'
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+  postgres-integration:
+    # Real PostgreSQL, synthetic data only. Credentials below are throwaway values
+    # for an ephemeral service container that is not reachable from outside the job.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres@sha256:a77aa70e641402a21411b92b721c58d10f23b50ae5fdd2333efd22d166e1e5f7 # 17-alpine
+        env:
+          POSTGRES_PASSWORD: ci-only-not-secret
+          POSTGRES_DB: aftergreen_it
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d aftergreen_it -h 127.0.0.1"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: Integration tests (real PostgreSQL)
+        env:
+          AFTERGREEN_TEST_POSTGRES_URL: postgres://postgres:ci-only-not-secret@127.0.0.1:5432/aftergreen_it?sslmode=disable
+        run: go test -tags integration -race -count=1 -v ./... 2>&1 | tee it.log; test ${PIPESTATUS[0]} -eq 0; ! grep -q -- '--- SKIP' it.log

@@ -1,0 +1,479 @@
+{
+  "schema_version": 1,
+  "description": "Language-neutral HTTP verification conformance cases shared by the AfterGreen Go CLI and the AfterGreen GitHub Action. See conformance/README.md for the fixture format.",
+  "cases": [
+    {
+      "name": "status-and-body-match",
+      "server": {
+        "status": 200,
+        "body": "version=abc123\n"
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "abc123",
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "VERIFIED",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "status-only-match",
+      "server": {
+        "status": 200,
+        "body": "ok"
+      },
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "VERIFIED",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "expected-non-200-status",
+      "server": {
+        "status": 404,
+        "body": "not found"
+      },
+      "contract": {
+        "expected_status": 404,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "VERIFIED",
+        "observed_status": 404
+      }
+    },
+    {
+      "name": "status-mismatch",
+      "server": {
+        "status": 503,
+        "body": "maintenance"
+      },
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "FAILED",
+        "observed_status": 503
+      }
+    },
+    {
+      "name": "status-mismatch-even-if-body-matches",
+      "server": {
+        "status": 500,
+        "body": "version=abc123"
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "abc123",
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "FAILED",
+        "observed_status": 500
+      }
+    },
+    {
+      "name": "body-missing-required-text",
+      "server": {
+        "status": 200,
+        "body": "version=old999"
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "abc123",
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "FAILED",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "empty-body-with-required-text",
+      "server": {
+        "status": 200,
+        "body": ""
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "abc123",
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "FAILED",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "substring-match-is-case-sensitive",
+      "server": {
+        "status": 200,
+        "body": "VERSION=ABC123"
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "abc123",
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "FAILED",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "utf8-substring-match",
+      "server": {
+        "status": 200,
+        "body": "status: ✓ deployed — build 7f3a"
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "✓ deployed",
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "VERIFIED",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "gzip-encoded-body-is-decoded",
+      "server": {
+        "status": 200,
+        "body": "version=abc123",
+        "gzip": true
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "abc123",
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "VERIFIED",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "redirect-is-not-followed",
+      "server": {
+        "status": 302,
+        "location": "/elsewhere",
+        "body": ""
+      },
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "FAILED",
+        "observed_status": 302,
+        "redirect_target_requested": false
+      }
+    },
+    {
+      "name": "redirect-status-can-be-asserted",
+      "server": {
+        "status": 301,
+        "location": "/elsewhere",
+        "body": ""
+      },
+      "contract": {
+        "expected_status": 301,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "VERIFIED",
+        "observed_status": 301,
+        "redirect_target_requested": false
+      }
+    },
+    {
+      "name": "body-exactly-at-1mib-limit",
+      "server": {
+        "status": 200,
+        "body_bytes": 1048576,
+        "body_suffix": "HEALTHY"
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "HEALTHY",
+        "timeout_seconds": 10
+      },
+      "want": {
+        "verdict": "VERIFIED",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "body-over-limit-is-unknown",
+      "server": {
+        "status": 200,
+        "body_bytes": 1048577,
+        "body_suffix": "HEALTHY"
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "HEALTHY",
+        "timeout_seconds": 10
+      },
+      "want": {
+        "verdict": "UNKNOWN",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "body-over-limit-without-body-assertion",
+      "server": {
+        "status": 200,
+        "body_bytes": 1048577
+      },
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 10
+      },
+      "want": {
+        "verdict": "VERIFIED",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "body-over-limit-with-status-mismatch-is-failed",
+      "server": {
+        "status": 502,
+        "body_bytes": 1048577
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "HEALTHY",
+        "timeout_seconds": 10
+      },
+      "want": {
+        "verdict": "FAILED",
+        "observed_status": 502
+      }
+    },
+    {
+      "name": "truncated-body-is-unknown",
+      "server": {
+        "status": 200,
+        "body": "version=abc",
+        "truncate": true
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "abc123",
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "UNKNOWN",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "timeout-before-response-is-unknown",
+      "server": {
+        "status": 200,
+        "body": "late",
+        "delay_ms": 2500
+      },
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 1
+      },
+      "want": {
+        "verdict": "UNKNOWN",
+        "observed_status": null
+      }
+    },
+    {
+      "name": "timeout-while-reading-body-is-unknown",
+      "server": {
+        "status": 200,
+        "body": "version=abc123",
+        "body_delay_ms": 2500
+      },
+      "contract": {
+        "expected_status": 200,
+        "contains": "abc123",
+        "timeout_seconds": 1
+      },
+      "want": {
+        "verdict": "UNKNOWN",
+        "observed_status": 200
+      }
+    },
+    {
+      "name": "connection-refused-is-unknown",
+      "url": "{unreachable}/",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 2
+      },
+      "want": {
+        "verdict": "UNKNOWN",
+        "observed_status": null
+      }
+    },
+    {
+      "name": "invalid-file-scheme",
+      "url": "file:///etc/passwd",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-ftp-scheme",
+      "url": "ftp://example.invalid/file",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-relative-url",
+      "url": "/health",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-missing-host",
+      "url": "http://",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-url-credentials",
+      "url": "https://user:secret@example.invalid/version",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-url-username-only",
+      "url": "https://token@example.invalid/version",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-url-fragment",
+      "url": "https://example.invalid/version#build",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-url-empty-fragment",
+      "url": "https://example.invalid/version#",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-url-space-in-host",
+      "url": "http://exa mple.invalid/",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-url-port-out-of-range",
+      "url": "http://127.0.0.1:65536/",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-status-too-low",
+      "url": "https://example.invalid/",
+      "contract": {
+        "expected_status": 99,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-status-too-high",
+      "url": "https://example.invalid/",
+      "contract": {
+        "expected_status": 600,
+        "timeout_seconds": 5
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-timeout-zero",
+      "url": "https://example.invalid/",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 0
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    },
+    {
+      "name": "invalid-timeout-too-long",
+      "url": "https://example.invalid/",
+      "contract": {
+        "expected_status": 200,
+        "timeout_seconds": 61
+      },
+      "want": {
+        "verdict": "INVALID"
+      }
+    }
+  ]
+}
