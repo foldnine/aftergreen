@@ -1,9 +1,14 @@
 # Response headers. Cloudflare reads this file at deploy time and does not
 # serve it. Everything on this site is same-origin: no CDN, no hosted fonts,
-# no analytics, no inline script or style. JSON-LD is a data block, which CSP
-# does not execute or block.
+# no inline script or style. JSON-LD is a data block, which CSP does not
+# execute or block.
+#
+# One exception: Cloudflare Web Analytics is enabled for the foldnine.dev
+# zone and injects its beacon at the edge. The policy allows that one script
+# and its endpoint (the same as foldnine.dev's own policy); the beacon posts to
+# /cdn-cgi/rum on this origin, hence connect-src 'self'.
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self' https://cloudflareinsights.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), camera=(), microphone=(), clipboard-read=()

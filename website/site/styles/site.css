@@ -369,7 +369,7 @@ h1 {
 
 .table-scroll { overflow-x: auto; margin-bottom: 1rem; }
 .table-scroll:focus-visible { outline-offset: 2px; }
-.matrix { border-collapse: collapse; width: 100%; min-width: 28rem; font-size: 1rem; }
+.matrix { border-collapse: collapse; width: 100%; font-size: 1rem; }
 .matrix caption, .outcomes caption {
   text-align: left; font-family: var(--mono); font-size: 0.75rem; font-weight: 500;
   letter-spacing: 0.08em; text-transform: uppercase; padding-bottom: 0.75rem;
@@ -378,7 +378,7 @@ h1 {
 .matrix th, .matrix td { text-align: left; padding: 0.75rem 1rem 0.75rem 0; border-bottom: 1px solid var(--rule); }
 .matrix thead th { border-bottom-color: var(--charcoal); font-weight: 600; }
 .matrix tbody th { font-weight: 500; }
-.matrix td { font-family: var(--mono); font-size: 0.9375rem; width: 22%; }
+.matrix td { font-family: var(--mono); font-size: 0.9375rem; width: 24%; }
 
 /* GitHub Action */
 .action-notes { min-width: 0; }
