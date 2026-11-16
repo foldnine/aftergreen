@@ -248,6 +248,10 @@
               </div>
               <p class="note">The script detects your OS and CPU, downloads the release from GitHub, checks its SHA256 against the release’s <span class="mono">SHA256SUMS</span> and stops without installing anything if they differ. It installs to <span class="mono">~/.local/bin</span>, never uses <span class="mono">sudo</span> and never edits your shell profile. Options: <span class="mono">--bin-dir DIR</span>, <span class="mono">--version vX.Y.Z</span>.</p>
               <div class="code">
+                <p class="code__title"><span id="brew-title">Homebrew (macOS and Linux)</span></p>
+                <pre data-copy tabindex="0" aria-labelledby="brew-title"><code>brew install foldnine/tap/aftergreen</code></pre>
+              </div>
+              <div class="code">
                 <p class="code__title"><span id="inspect-title">Or read the script before running it</span></p>
                 <pre data-copy tabindex="0" aria-labelledby="inspect-title"><code>curl -fsSLO https://aftergreen.foldnine.dev/install.sh
 less install.sh

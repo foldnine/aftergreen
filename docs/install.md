@@ -6,6 +6,7 @@ binaries for Linux, macOS and Windows on amd64 and arm64. You don't need Go.
 | Method | Platforms |
 | --- | --- |
 | [Install script](#install-script-linux-and-macos) | Linux, macOS |
+| [Homebrew](#homebrew) | macOS, Linux |
 | [PowerShell download](#windows) | Windows |
 | [Direct download](#direct-downloads) | all |
 | [GitHub Action](#github-actions) | GitHub-hosted and self-hosted runners |
@@ -144,10 +145,14 @@ install script in a `run:` step.
 
 ## Homebrew
 
-Not available yet. A tested formula is ready in
-[`packaging/homebrew/`](../packaging/homebrew/) and will be published to
-`foldnine/homebrew-tap`. This section will show the install command once
-`brew install foldnine/tap/aftergreen` works.
+```bash
+brew install foldnine/tap/aftergreen
+```
+
+The formula lives in [foldnine/homebrew-tap](https://github.com/foldnine/homebrew-tap)
+and installs the same prebuilt release binaries. Homebrew checks each archive
+against the SHA256 in the formula before installing. Upgrade with
+`brew upgrade aftergreen`; uninstall with `brew uninstall aftergreen`.
 
 ## From source
 

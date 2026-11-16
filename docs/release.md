@@ -75,7 +75,7 @@ The install paths read the release assets by name
    `website/site/index.html` (see `website/README.md`), the Windows job in
    `.github/workflows/install.yml`, and the pinned-version step in the same
    workflow.
-3. Regenerate the Homebrew formula and open a PR to the tap (once it exists):
+3. Regenerate the Homebrew formula and open a PR to [foldnine/homebrew-tap](https://github.com/foldnine/homebrew-tap) with it as `Formula/aftergreen.rb`:
 
    ```bash
    gh release download vX.Y.Z -R foldnine/aftergreen -p SHA256SUMS -D /tmp/ag
@@ -89,7 +89,6 @@ The install paths read the release assets by name
 
 - Keyless cosign signatures of `SHA256SUMS`. The attestation already gives
   Sigstore-backed provenance; add cosign only if users ask for it.
-- Publishing the Homebrew tap: see [packaging/homebrew/README.md](../packaging/homebrew/README.md).
 - Switching the GitHub Action to verified binaries (see ADR 0001).
 
 ## Supported platforms
