@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AfterGreen — Post-deployment verification. Green isn’t proof.</title>
-  <meta name="description" content="AfterGreen is an open-source CLI and GitHub Action for post-deployment verification. It checks the observable outcome of a deploy over HTTP or PostgreSQL and returns VERIFIED, FAILED or UNKNOWN.">
+  <meta name="description" content="AfterGreen is an open-source CLI and GitHub Action for post-deployment verification. Install it in one command on Linux, macOS or Windows. It checks the observable outcome of a deploy over HTTP or PostgreSQL and returns VERIFIED, FAILED or UNKNOWN.">
   <link rel="canonical" href="https://aftergreen.foldnine.dev/">
   <meta name="theme-color" content="#101416">
   <meta name="color-scheme" content="light">
@@ -52,7 +52,8 @@
         "url": "https://aftergreen.foldnine.dev/",
         "codeRepository": "https://github.com/foldnine/aftergreen",
         "programmingLanguage": "Go",
-        "runtimePlatform": "Go 1.26+",
+        "runtimePlatform": ["Linux", "macOS", "Windows"],
+        "version": "0.1.0",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "author": { "@id": "https://foldnine.dev/#organization" }
       },
@@ -79,6 +80,7 @@
           <li class="nav-section"><a href="#problem">Problem</a></li>
           <li class="nav-section"><a href="#verdicts">Verdicts</a></li>
           <li class="nav-section"><a href="#how">How it works</a></li>
+          <li><a href="#install">Install</a></li>
           <li class="nav-section"><a href="#action">GitHub Action</a></li>
           <li><a href="https://github.com/foldnine/aftergreen">GitHub</a></li>
         </ul>
@@ -91,12 +93,16 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="wrap hero__grid">
         <div class="hero__copy">
-          <p class="kicker">Post-deployment verification <span aria-hidden="true">·</span> Open source <span aria-hidden="true">·</span> Early preview</p>
+          <p class="kicker">Post-deployment verification <span aria-hidden="true">·</span> Open source <span aria-hidden="true">·</span> v0.1.0 pre-release</p>
           <h1 id="hero-title">Green isn’t proof.</h1>
           <p class="hero__lede">Your pipeline says success. AfterGreen checks whether the expected outcome actually happened.</p>
           <div class="actions">
-            <a class="btn btn--primary" href="https://github.com/foldnine/aftergreen">Explore the CLI</a>
-            <a class="btn btn--secondary" href="https://github.com/foldnine/aftergreen-action">GitHub Action</a>
+            <a class="btn btn--primary" href="#install">Install</a>
+            <a class="btn btn--secondary" href="#action">GitHub Action</a>
+          </div>
+          <div class="code hero__install">
+            <p class="code__title"><span id="hero-install-title">macOS and Linux</span></p>
+            <pre data-copy tabindex="0" aria-labelledby="hero-install-title"><code>curl -fsSL https://aftergreen.foldnine.dev/install.sh | sh</code></pre>
           </div>
         </div>
 
@@ -205,7 +211,7 @@
             <div class="code-stack">
               <div class="code">
                 <p class="code__title"><span id="cmd-title">Verify a deployment over HTTP</span></p>
-                <pre data-copy tabindex="0" aria-labelledby="cmd-title"><code>go run ./cmd/aftergreen http \
+                <pre data-copy tabindex="0" aria-labelledby="cmd-title"><code>aftergreen http \
   --url https://app.example.com/version \
   --status 200 \
   --contains "$GIT_COMMIT_SHA" \
@@ -218,20 +224,115 @@
 <span class="t-slate">$ echo $?</span>
 1</code></pre>
               </div>
-              <p class="note">Run from a clone of the repository with Go 1.26 or later. No prebuilt binaries are published yet. Output never prints the URL, the response body or the expected text.</p>
+              <p class="note"><a href="#install">Install the CLI</a> first, or run the same check from a workflow with the <a href="#action">GitHub Action</a>. Output never prints the URL, the response body or the expected text.</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- 04 Capabilities -->
-    <section class="section section--rule" id="capabilities" aria-labelledby="cap-title">
+    <!-- 04 Install -->
+    <section class="section section--rule install" id="install" aria-labelledby="install-title">
       <div class="wrap section__grid">
         <p class="section__num" aria-hidden="true">04</p>
         <div class="section__body">
+          <h2 id="install-title">Install in one command.</h2>
+          <p class="lede">Prebuilt binaries for Linux, macOS and Windows on amd64 and arm64. No Go toolchain, no root, no dependencies at run time.</p>
+
+          <div class="split split--install">
+            <div class="install__methods">
+              <h3 id="install-unix">macOS and Linux</h3>
+              <div class="code">
+                <p class="code__title"><span id="unix-title">Terminal</span></p>
+                <pre data-copy tabindex="0" aria-labelledby="unix-title"><code>curl -fsSL https://aftergreen.foldnine.dev/install.sh | sh</code></pre>
+              </div>
+              <p class="note">The script detects your OS and CPU, downloads the release from GitHub, checks its SHA256 against the release’s <span class="mono">SHA256SUMS</span> and stops without installing anything if they differ. It installs to <span class="mono">~/.local/bin</span>, never uses <span class="mono">sudo</span> and never edits your shell profile. Options: <span class="mono">--bin-dir DIR</span>, <span class="mono">--version vX.Y.Z</span>.</p>
+              <div class="code">
+                <p class="code__title"><span id="inspect-title">Or read the script before running it</span></p>
+                <pre data-copy tabindex="0" aria-labelledby="inspect-title"><code>curl -fsSLO https://aftergreen.foldnine.dev/install.sh
+less install.sh
+sh install.sh --bin-dir "$HOME/.local/bin"</code></pre>
+              </div>
+
+              <h3 id="install-windows">Windows</h3>
+              <div class="code">
+                <p class="code__title"><span id="win-title">PowerShell (amd64; use arm64 on Arm)</span></p>
+                <pre data-copy tabindex="0" aria-labelledby="win-title"><code>$v = "v0.1.0"; $a = "aftergreen_${v}_windows_amd64.zip"
+$base = "https://github.com/foldnine/aftergreen/releases/download/$v"
+Invoke-WebRequest "$base/$a" -OutFile $a
+Invoke-WebRequest "$base/SHA256SUMS" -OutFile SHA256SUMS
+$expected = ((Get-Content SHA256SUMS) | Where-Object { $_ -like "*  $a" }).Split(" ")[0]
+if ((Get-FileHash $a -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw "checksum mismatch" }
+Expand-Archive $a -DestinationPath "$env:LOCALAPPDATA\aftergreen" -Force
+&amp; "$env:LOCALAPPDATA\aftergreen\aftergreen.exe" version</code></pre>
+              </div>
+              <p class="note">Add <span class="mono">%LOCALAPPDATA%\aftergreen</span> to your user <span class="mono">PATH</span> to run <span class="mono">aftergreen</span> from any directory.</p>
+
+              <h3 id="install-downloads">Direct downloads</h3>
+              <section class="table-scroll" tabindex="0" aria-labelledby="downloads-caption">
+                <table class="matrix downloads">
+                  <caption id="downloads-caption">AfterGreen v0.1.0 (pre-release)</caption>
+                  <thead>
+                    <tr><th scope="col">Platform</th><th scope="col">amd64 (Intel, AMD)</th><th scope="col">arm64</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><th scope="row">Linux</th><td><a href="https://github.com/foldnine/aftergreen/releases/download/v0.1.0/aftergreen_v0.1.0_linux_amd64.tar.gz">tar.gz</a></td><td><a href="https://github.com/foldnine/aftergreen/releases/download/v0.1.0/aftergreen_v0.1.0_linux_arm64.tar.gz">tar.gz</a></td></tr>
+                    <tr><th scope="row">macOS</th><td><a href="https://github.com/foldnine/aftergreen/releases/download/v0.1.0/aftergreen_v0.1.0_darwin_amd64.tar.gz">tar.gz</a></td><td><a href="https://github.com/foldnine/aftergreen/releases/download/v0.1.0/aftergreen_v0.1.0_darwin_arm64.tar.gz">tar.gz</a> <span class="downloads__hint">Apple silicon</span></td></tr>
+                    <tr><th scope="row">Windows</th><td><a href="https://github.com/foldnine/aftergreen/releases/download/v0.1.0/aftergreen_v0.1.0_windows_amd64.zip">zip</a></td><td><a href="https://github.com/foldnine/aftergreen/releases/download/v0.1.0/aftergreen_v0.1.0_windows_arm64.zip">zip</a></td></tr>
+                  </tbody>
+                </table>
+              </section>
+              <p class="note">Verify before running: download <a href="https://github.com/foldnine/aftergreen/releases/download/v0.1.0/SHA256SUMS">SHA256SUMS</a> and run <span class="mono">sha256sum --ignore-missing -c SHA256SUMS</span> or, on macOS, <span class="mono">grep aftergreen_v0.1.0_darwin_arm64.tar.gz SHA256SUMS | shasum -a 256 -c</span>.</p>
+              <p class="note">Every archive also has a signed build provenance attestation: <span class="mono">gh attestation verify FILE --repo foldnine/aftergreen</span>. The macOS binaries are not notarized; if macOS blocks one you downloaded in a browser, run <span class="mono">xattr -d com.apple.quarantine aftergreen</span>. The install script is not affected.</p>
+              <p class="note">All releases: <a href="https://github.com/foldnine/aftergreen/releases">github.com/foldnine/aftergreen/releases</a>.</p>
+
+              <h3 id="install-actions">GitHub Actions</h3>
+              <p class="note">Nothing to install. Add <span class="mono">uses: foldnine/aftergreen-action@v1.0.1</span> after your deploy step; see <a href="#action">the workflow example</a>.</p>
+            </div>
+
+            <div class="code-stack install__quickstart">
+              <h3 id="quickstart-title">Quick start</h3>
+              <div class="code">
+                <p class="code__title"><span id="qs-title">Your first verification</span></p>
+                <pre data-copy tabindex="0" aria-labelledby="qs-title"><code>aftergreen http \
+  --url https://example.com \
+  --status 200 \
+  --contains "Example Domain"</code></pre>
+              </div>
+              <div class="code code--output">
+                <p class="code__title"><span id="qs-out-title">Output</span></p>
+                <pre tabindex="0" aria-labelledby="qs-out-title"><code>VERIFIED  HTTP outcome (HTTP 200)
+<span class="t-slate">$ echo $?</span>
+0</code></pre>
+              </div>
+              <div class="code">
+                <p class="code__title"><span id="qs-fail-title">Now expect a build that is not there</span></p>
+                <pre data-copy tabindex="0" aria-labelledby="qs-fail-title"><code>aftergreen http \
+  --url https://example.com \
+  --status 200 \
+  --contains "a82f19c"</code></pre>
+              </div>
+              <div class="code code--output">
+                <p class="code__title"><span id="qs-fail-out-title">Output</span></p>
+                <pre tabindex="0" aria-labelledby="qs-fail-out-title"><code><span class="t-coral">FAILED</span>  HTTP outcome (HTTP 200)
+  - response body did not contain the expected text
+<span class="t-slate">$ echo $?</span>
+1</code></pre>
+              </div>
+              <p class="note">The page still answers 200, but the text you expected is not in it. For your own deploys, point <span class="mono">--url</span> at an endpoint that serves the build ID and pass that ID to <span class="mono">--contains</span>.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 Capabilities -->
+    <section class="section section--rule" id="capabilities" aria-labelledby="cap-title">
+      <div class="wrap section__grid">
+        <p class="section__num" aria-hidden="true">05</p>
+        <div class="section__body">
           <h2 id="cap-title">What exists today</h2>
-          <p class="lede">AfterGreen is deliberately small. These are the checks that ship in the repository now; nothing on this page is planned work.</p>
+          <p class="lede">AfterGreen is deliberately small. These are the checks in the v0.1.0 release; nothing on this page is planned work.</p>
 
           <div class="caps">
             <article class="cap">
@@ -278,10 +379,10 @@
       </div>
     </section>
 
-    <!-- 05 GitHub Action -->
+    <!-- 06 GitHub Action -->
     <section class="section section--dark" id="action" aria-labelledby="action-title">
       <div class="wrap section__grid">
-        <p class="section__num" aria-hidden="true">05</p>
+        <p class="section__num" aria-hidden="true">06</p>
         <div class="section__body">
           <h2 id="action-title">GitHub Actions deployment verification</h2>
           <p class="lede">Add one step after your deploy. The job only stays green if the deployed endpoint really serves the new build.</p>
@@ -298,8 +399,7 @@
       # ... your deploy steps ...
       - name: Verify the deployed build is live
         id: aftergreen
-        # No release yet: pin a full commit SHA.
-        uses: foldnine/aftergreen-action@13d5dc2f86e766511b67b478079d4b44100e1633
+        uses: foldnine/aftergreen-action@v1.0.1
         with:
           url: https://app.example.com/version
           expected-status: '200'
@@ -319,7 +419,7 @@
                 </tbody>
               </table>
               <p>Outputs <span class="mono">verdict</span> and <span class="mono">observed-status</span> are available to later steps. To react to a verdict instead of stopping, set <span class="mono">continue-on-error: true</span> and read <span class="mono">steps.aftergreen.outputs.verdict</span>.</p>
-              <p>The Action has no release, version tag or Marketplace listing yet. The SHA above is the current <span class="mono">main</span> of the Action repository.</p>
+              <p><span class="mono">v1.0.1</span> is an immutable release: the tag never moves. The <span class="mono">v1</span> tag follows the latest <span class="mono">v1.x.y</span> if you prefer updates. For the strictest pinning, use the release’s full commit SHA.</p>
               <a class="btn btn--light" href="https://github.com/foldnine/aftergreen-action">View the Action on GitHub</a>
             </div>
           </div>
@@ -327,24 +427,25 @@
       </div>
     </section>
 
-    <!-- 06 Open source -->
+    <!-- 07 Open source -->
     <section class="section" id="open-source" aria-labelledby="oss-title">
       <div class="wrap section__grid">
-        <p class="section__num" aria-hidden="true">06</p>
+        <p class="section__num" aria-hidden="true">07</p>
         <div class="section__body">
-          <h2 id="oss-title">Open source, early preview</h2>
+          <h2 id="oss-title">Open source</h2>
           <div class="split">
             <div>
               <p class="lede">AfterGreen is an open-source engineering tool built by FoldNine, licensed under Apache-2.0. The verdict semantics are the product: a behaviour change needs a test that shows why.</p>
               <dl class="status">
-                <div><dt>CLI</dt><dd>No published release or prebuilt binaries yet. Run from source with Go 1.26+.</dd></div>
-                <div><dt>GitHub Action</dt><dd>No release or Marketplace listing yet. Pin a full commit SHA.</dd></div>
+                <div><dt>CLI</dt><dd>v0.1.0, a pre-release. Binaries for Linux, macOS and Windows with SHA256 checksums and build provenance.</dd></div>
+                <div><dt>GitHub Action</dt><dd>v1.0.1. HTTP checks only. Immutable release tags.</dd></div>
                 <div><dt>License</dt><dd>Apache-2.0</dd></div>
               </dl>
             </div>
             <ul class="links">
               <li><a href="https://github.com/foldnine/aftergreen"><span>Main repository</span><span class="mono">foldnine/aftergreen</span></a></li>
               <li><a href="https://github.com/foldnine/aftergreen-action"><span>GitHub Action</span><span class="mono">foldnine/aftergreen-action</span></a></li>
+              <li><a href="https://github.com/foldnine/aftergreen/releases"><span>Releases</span><span class="mono">v0.1.0</span></a></li>
               <li><a href="https://github.com/foldnine/aftergreen/tree/main/docs"><span>Documentation</span><span class="mono">docs/</span></a></li>
               <li><a href="https://github.com/foldnine/aftergreen/blob/main/LICENSE"><span>License</span><span class="mono">Apache-2.0</span></a></li>
             </ul>

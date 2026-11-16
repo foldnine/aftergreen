@@ -1,0 +1,160 @@
+name: Install
+# Tests every documented install path on the platforms we publish binaries for:
+# - scripts/install.sh: offline tests (tampered archive, missing checksum entry,
+#   wrong version, bad input) and a live install of the published release,
+#   followed by the README quick start.
+# - The Homebrew formula in packaging/homebrew/ (installed from a local tap).
+# - The documented PowerShell download-and-verify steps on Windows.
+# Runs weekly too, so a broken published release or download URL shows up
+# without a code change.
+on:
+  pull_request:
+    paths:
+      - 'scripts/install.sh'
+      - 'scripts/test-install.sh'
+      - 'website/site/install.sh'
+      - 'packaging/**'
+      - '.github/workflows/install.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/install.sh'
+      - 'scripts/test-install.sh'
+      - 'website/site/install.sh'
+      - 'packaging/**'
+      - '.github/workflows/install.yml'
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck
+        run: shellcheck -s sh scripts/install.sh scripts/test-install.sh packaging/homebrew/render-formula.sh
+      - name: Website serves the same installer
+        run: cmp scripts/install.sh website/site/install.sh
+      - name: Formula matches the published release checksums
+        run: |
+          tag="$(sed -n 's|.*/releases/download/\(v[0-9.]*\)/.*|\1|p' packaging/homebrew/aftergreen.rb | head -n 1)"
+          curl -fsSL --proto '=https' -o "$RUNNER_TEMP/SHA256SUMS" \
+            "https://github.com/foldnine/aftergreen/releases/download/$tag/SHA256SUMS"
+          packaging/homebrew/render-formula.sh "$tag" "$RUNNER_TEMP/SHA256SUMS" | diff -u packaging/homebrew/aftergreen.rb -
+
+  unix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Offline tests (sh)
+        run: scripts/test-install.sh sh
+      - name: Offline tests (bash)
+        run: scripts/test-install.sh bash
+      - name: Offline tests (dash)
+        if: runner.os == 'Linux'
+        run: scripts/test-install.sh dash
+      - name: Live install of the newest published release, piped like the README
+        run: |
+          sh < scripts/install.sh
+          "$HOME/.local/bin/aftergreen" version
+      - name: Quick start from the README
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          aftergreen http --url https://example.com --status 200 --contains "Example Domain"
+          set +e
+          aftergreen http --url https://example.com --status 200 --contains "a82f19c"
+          test $? -eq 1
+      - name: Live install of a pinned version into a custom directory
+        run: |
+          sh scripts/install.sh --version v0.1.0 --bin-dir "$RUNNER_TEMP/bin"
+          test "$("$RUNNER_TEMP/bin/aftergreen" version)" = "aftergreen v0.1.0"
+
+  alpine:
+    # busybox sh and busybox wget: no curl, no bash.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Live install with wget on Alpine
+        run: |
+          docker run --rm -v "$PWD/scripts:/s:ro" alpine:3.22 sh -euc '
+            if command -v curl; then echo "curl present; this job must test wget"; exit 1; fi
+            sh /s/install.sh
+            ~/.local/bin/aftergreen http --url https://example.com --status 200 --contains "Example Domain"
+          '
+
+  homebrew:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_ANALYTICS: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the formula from a local tap
+        run: |
+          brew tap-new --no-git foldnine/local
+          cp packaging/homebrew/aftergreen.rb "$(brew --repository)/Library/Taps/foldnine/homebrew-local/Formula/"
+          brew install foldnine/local/aftergreen
+          brew test foldnine/local/aftergreen
+          brew audit --strict foldnine/local/aftergreen
+          aftergreen http --url https://example.com --status 200 --contains "Example Domain"
+
+  windows:
+    # The PowerShell steps documented in docs/install.md.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: amd64
+          - os: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Download, verify and run
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $v = "v0.1.0"; $a = "aftergreen_${v}_windows_$env:ARCH.zip"
+          $base = "https://github.com/foldnine/aftergreen/releases/download/$v"
+          Invoke-WebRequest "$base/$a" -OutFile $a
+          Invoke-WebRequest "$base/SHA256SUMS" -OutFile SHA256SUMS
+          $expected = ((Get-Content SHA256SUMS) | Where-Object { $_ -like "*  $a" }).Split(" ")[0]
+          if ((Get-FileHash $a -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw "checksum mismatch for $a" }
+          Expand-Archive $a -DestinationPath "$env:LOCALAPPDATA\aftergreen" -Force
+          $out = & "$env:LOCALAPPDATA\aftergreen\aftergreen.exe" version
+          if ($out -ne "aftergreen $v") { throw "unexpected version: $out" }
+          & "$env:LOCALAPPDATA\aftergreen\aftergreen.exe" http --url https://example.com --status 200 --contains "Example Domain"
+          if ($LASTEXITCODE -ne 0) { throw "quick start failed: exit $LASTEXITCODE" }
+      - name: A tampered download is rejected
+        run: |
+          $a = "aftergreen_v0.1.0_windows_${{ matrix.arch }}.zip"
+          Add-Content -Path $a -Value "x"
+          $expected = ((Get-Content SHA256SUMS) | Where-Object { $_ -like "*  $a" }).Split(" ")[0]
+          if ((Get-FileHash $a -Algorithm SHA256).Hash.ToLower() -eq $expected) { throw "tampered file passed the check" }

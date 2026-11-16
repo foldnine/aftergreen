@@ -19,8 +19,9 @@ and returns one of three verdicts:
 
 Built by [FoldNine](https://foldnine.dev). Apache-2.0.
 
-> **Status: early preview.** No releases or binaries are published yet. Run it
-> from source with Go 1.26+.
+> **Status: v0.1.0 pre-release.** Prebuilt binaries for Linux, macOS and
+> Windows (amd64, arm64) with SHA256 checksums and build provenance. You don't
+> need Go.
 
 ## What exists today
 
@@ -29,23 +30,60 @@ Built by [FoldNine](https://foldnine.dev). Apache-2.0.
 | HTTP deployment check (status + body text) | `aftergreen http` | works |
 | Local JSON evidence check | `aftergreen check` | works (demo/evaluation format) |
 | PostgreSQL destination check | `aftergreen postgres` | works; read-only, one validated query shape, tested against real PostgreSQL 17 |
-| GitHub Action | [foldnine/aftergreen-action](https://github.com/foldnine/aftergreen-action) | preview, unreleased |
+| GitHub Action | [foldnine/aftergreen-action](https://github.com/foldnine/aftergreen-action) | v1.0.1; HTTP checks only |
 
 Not built: n8n or other workflow-tool integrations, other databases, a hosted
 service, a UI, retries or scheduling.
 
-## Quick start
+## Install
+
+macOS and Linux:
 
 ```bash
-git clone https://github.com/foldnine/aftergreen && cd aftergreen
-go run ./cmd/aftergreen demo     # writes aftergreen-demo.json (synthetic data)
-go run ./cmd/aftergreen check    # exit 1: one FAILED, one UNKNOWN by design
+curl -fsSL https://aftergreen.foldnine.dev/install.sh | sh
+```
+
+The [script](scripts/install.sh) detects your OS and CPU, downloads the
+release from GitHub, verifies its SHA256 against the release's `SHA256SUMS`
+and installs to `~/.local/bin`. It stops without installing anything if the
+checksum doesn't match, and it never uses `sudo`. Use `--bin-dir DIR` or
+`--version vX.Y.Z` to change the defaults.
+
+Windows (PowerShell, download and verify), direct downloads for every
+platform, `go install` and checksum/provenance verification:
+**[docs/install.md](docs/install.md)**.
+
+In GitHub Actions, use [foldnine/aftergreen-action](https://github.com/foldnine/aftergreen-action)
+(`uses: foldnine/aftergreen-action@v1.0.1`); there is nothing to install.
+
+## Quick start
+
+Your first verification, right after installing:
+
+```bash
+aftergreen http --url https://example.com --status 200 --contains "Example Domain"
+# VERIFIED  HTTP outcome (HTTP 200)          exit 0
+
+aftergreen http --url https://example.com --status 200 --contains "a82f19c"
+# FAILED  HTTP outcome (HTTP 200)            exit 1
+#   - response body did not contain the expected text
+```
+
+The page answers 200 both times. Only the second check notices that the text
+you expected isn't there. For your own deploys, point `--url` at an endpoint
+that serves the build ID, and pass that ID to `--contains`.
+
+To see all three verdicts on synthetic data:
+
+```bash
+aftergreen demo     # writes aftergreen-demo.json
+aftergreen check    # exit 1: one FAILED, one UNKNOWN by design
 ```
 
 ### Verify a deployment over HTTP
 
 ```bash
-go run ./cmd/aftergreen http \
+aftergreen http \
   --url https://app.example.com/version \
   --status 200 \
   --contains "$GIT_COMMIT_SHA" \
@@ -61,7 +99,7 @@ maintenance page can return 200 too. Expose a unique build ID and assert it with
 
 ```bash
 export AFTERGREEN_POSTGRES_URL='postgres://aftergreen_reader@db:5432/app?sslmode=verify-full'
-go run ./cmd/aftergreen postgres --contract examples/postgres-contract.json --key "$DEPLOY_ID"
+aftergreen postgres --contract examples/postgres-contract.json --key "$DEPLOY_ID"
 ```
 
 AfterGreen runs one read-only, parameterized `SELECT` that it builds itself.
@@ -97,6 +135,7 @@ evidence files.
 
 ## Design documents
 
+- [docs/install.md](docs/install.md): every install method and how to verify a download
 - [docs/http-check.md](docs/http-check.md): HTTP check semantics and security boundary
 - [docs/postgres.md](docs/postgres.md): PostgreSQL contract, exact SQL, least-privilege role
 - [docs/adr/0001-action-engine.md](docs/adr/0001-action-engine.md): why the Action is standalone Node
@@ -106,6 +145,8 @@ evidence files.
 
 ```bash
 gofmt -l . && go vet ./... && go test -race ./...
+go run ./cmd/aftergreen version    # run from source
+scripts/test-install.sh            # installer tests (offline, needs python3)
 ```
 
 Tests use local fixtures only. PostgreSQL integration tests:

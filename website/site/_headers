@@ -16,3 +16,9 @@
 
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The installer: shown as text in a browser so it can be read before running,
+# and re-checked often so a fixed installer reaches users within minutes.
+/install.sh
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=300

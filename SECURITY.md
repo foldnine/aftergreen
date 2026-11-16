@@ -26,4 +26,5 @@ In scope: this repository and
 
 ## Supported versions
 
-There are no releases yet. Fixes land on `main`.
+The latest release (currently v0.1.0) and `main` are supported. Fixes land on
+`main` and ship in the next release.

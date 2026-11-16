@@ -6,7 +6,7 @@ recorded a release.
 
 ```bash
 export AFTERGREEN_POSTGRES_URL='postgres://aftergreen_reader@db.internal:5432/app?sslmode=verify-full'
-go run ./cmd/aftergreen postgres --contract examples/postgres-contract.json --key "$DEPLOY_ID"
+aftergreen postgres --contract examples/postgres-contract.json --key "$DEPLOY_ID"
 ```
 
 Exit codes: `0` verified, `1` failed, `2` invalid input, `3` unknown.

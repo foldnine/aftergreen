@@ -3,8 +3,8 @@
 Run an independent check *after* your deploy reports success:
 
 ```bash
-go run ./cmd/aftergreen http --url http://127.0.0.1:8080/health
-go run ./cmd/aftergreen http --url https://app.example.com/version --status 200 --contains abc123 --json
+aftergreen http --url http://127.0.0.1:8080/health
+aftergreen http --url https://app.example.com/version --status 200 --contains abc123 --json
 ```
 
 | Flag | Default | Meaning |
