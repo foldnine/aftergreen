@@ -49,6 +49,12 @@ and installs to `~/.local/bin`. It stops without installing anything if the
 checksum doesn't match, and it never uses `sudo`. Use `--bin-dir DIR` or
 `--version vX.Y.Z` to change the defaults.
 
+Homebrew (macOS and Linux):
+
+```bash
+brew install foldnine/tap/aftergreen
+```
+
 Windows (PowerShell, download and verify), direct downloads for every
 platform, `go install` and checksum/provenance verification:
 **[docs/install.md](docs/install.md)**.

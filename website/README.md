@@ -26,8 +26,7 @@ signal green are not text-safe on ivory (see `brand/guidelines.md`).
 
 Every product claim must match the repositories at the time of writing:
 release status, what the Action supports (HTTP only), flags and exit codes.
-Don't show an install command until it works (Homebrew stays off the page
-until `foldnine/homebrew-tap` is published).
+Don't show an install command until it works.
 
 When a CLI release is published, update `v0.1.0` everywhere in `index.html`
 (hero kicker, Install section: Windows snippet, download links, verification
