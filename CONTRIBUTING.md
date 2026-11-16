@@ -27,3 +27,11 @@ scripts/test-postgres.sh    # real PostgreSQL integration tests (needs Docker)
 - Docs describe what exists today. Mark anything planned as planned.
 
 By contributing you agree that your contributions are licensed under Apache-2.0.
+
+## Branch protection
+
+`main` is protected by a ruleset: changes land only through pull requests,
+force pushes and deletion are blocked, and these CI checks must pass:
+`test (ubuntu-latest, stable)`, `test (ubuntu-latest, oldstable)`,
+`test (macos-latest, stable)`, `test (windows-latest, stable)` and
+`postgres-integration`. If you rename a CI job, update the ruleset too.
