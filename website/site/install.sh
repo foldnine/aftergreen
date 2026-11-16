@@ -29,7 +29,9 @@ set -eu
 
 REPO="foldnine/aftergreen"
 BASE_URL_DEFAULT="https://github.com/${REPO}/releases/download"
-API_URL="https://api.github.com/repos/${REPO}/releases?per_page=1"
+# The newest release is read from the public releases feed rather than the REST
+# API, whose unauthenticated rate limit is easily exhausted behind shared IPs.
+FEED_URL="https://github.com/${REPO}/releases.atom"
 
 say() { printf 'aftergreen-install: %s\n' "$*" >&2; }
 die() { say "error: $*"; exit 1; }
@@ -113,9 +115,11 @@ valid_version() {
 	printf '%s\n' "$1" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
 }
 
+# The first <entry> is the newest published release (drafts never appear).
+# Its id ends in the tag: <id>tag:github.com,2008:Repository/123/v0.1.0</id>
 latest_version() {
-	fetch "$API_URL" "$1/releases.json" || die "could not query ${API_URL}. Pass --version vX.Y.Z to skip this lookup"
-	tr ',' '\n' <"$1/releases.json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
+	fetch "$FEED_URL" "$1/releases.atom" || die "could not read ${FEED_URL}. Pass --version vX.Y.Z to skip this lookup"
+	sed -n 's|.*<id>tag:github.com,2008:Repository/[0-9]*/\([^<]*\)</id>.*|\1|p' "$1/releases.atom" | head -n 1
 }
 
 main() {
