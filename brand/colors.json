@@ -15,7 +15,12 @@
   "tokens": {
     "background": "charcoal",
     "surface": "ivory",
-    "reportedSignal": "signalGreen",
-    "verifiedFailure": "incidentCoral"
+    "reportedStatus": "signalGreen",
+    "observedOutcome": "incidentCoral",
+    "secondaryText": "slate"
+  },
+  "usage": {
+    "signalGreen": "Never as text on ivory or other light surfaces (contrast 1.2:1).",
+    "slate": "Text only on charcoal (5.9:1). On ivory it is decorative only (2.9:1, below WCAG AA)."
   }
 }

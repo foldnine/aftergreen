@@ -4,7 +4,7 @@ Approved visual direction: **a forensic instrument for developers**. Precise Swi
 
 ## Mark
 
-The two **separated, skewed signal planes** are canonical. Upper lime plane = reported workflow success; lower coral plane = independently observed outcome. The deliberate gap is essential. Do not merge, rotate or round the planes, redraw as a checkmark/shield, or substitute generic AI imagery.
+The two **separated, skewed signal planes** are canonical. Upper lime plane = the status a workflow *reports*; lower coral plane = the outcome AfterGreen *independently observes*. Coral marks the observed evidence, not failure: it is the plane that can contradict green. The deliberate gap is essential. Do not merge, rotate or round the planes, redraw as a checkmark/shield, or substitute generic AI imagery. Decorative use (for example a large cropped mark on the social preview) still uses the exact canonical paths, scaled uniformly.
 
 Canonical path data:
 
@@ -18,9 +18,15 @@ Canonical path data:
 | --- | --- | --- |
 | Charcoal | `#101416` | Primary ink/dark surface |
 | Ivory | `#F5F4EF` | Paper/light surface |
-| Signal Green | `#B5F36C` | Reported workflow green |
-| Incident Coral | `#F27964` | Contradictory result/failure |
+| Signal Green | `#B5F36C` | Reported workflow status |
+| Incident Coral | `#F27964` | Independently observed outcome |
 | Slate | `#899397` | Secondary detail |
+
+### Contrast
+
+- Charcoal on ivory and ivory on charcoal: body text.
+- Slate is text-safe only on charcoal (5.9:1). On ivory (2.9:1) use it for rules and decoration only.
+- Never set Signal Green as text on light surfaces (1.2:1). On charcoal it is fine.
 
 Use clear textual verdicts, never color alone, for VERIFIED / FAILED / UNKNOWN. Avoid gradients, glows, robots, brains, shields or decorative dashboards that imply nonexistent features.
 
@@ -40,4 +46,4 @@ Previous brand board mockups include **concept-only UI**. AfterGreen currently p
 
 ## Source assets
 
-All logo SVGs are based on the approved two-plane artwork. The wordmark uses Inter text with fallback fonts, **not outlined type**; rendering may vary if Inter is unavailable. The social-preview file is vector; export to PNG for GitHub social-preview settings as a separate build step if required.
+All logo SVGs use the approved two-plane artwork. The wordmark in the lockups and the social preview is **outlined** (Inter ExtraBold, kerned, converted to paths), so it renders identically without Inter installed. The social preview's secondary lines are SVG text; `assets/github-social-preview.png` (1280 × 640) is the rendered export to upload under repository Settings → Social preview.
