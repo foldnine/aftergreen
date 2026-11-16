@@ -1,0 +1,21 @@
+{
+  "name": "AfterGreen",
+  "source": "Approved AfterGreen identity, 2026-11-15",
+  "colors": {
+    "charcoal": "#101416",
+    "ivory": "#F5F4EF",
+    "signalGreen": "#B5F36C",
+    "incidentCoral": "#F27964",
+    "slate": "#899397"
+  },
+  "typography": {
+    "sans": "Inter",
+    "mono": "JetBrains Mono"
+  },
+  "tokens": {
+    "background": "charcoal",
+    "surface": "ivory",
+    "reportedSignal": "signalGreen",
+    "verifiedFailure": "incidentCoral"
+  }
+}
