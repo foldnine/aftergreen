@@ -29,17 +29,23 @@ type File struct {
 	Expect    map[string]string `json:"expect"`
 }
 
-const maxContractBytes = 64 << 10
+// MaxContractBytes is the largest contract file accepted.
+const MaxContractBytes = 64 << 10
 
 // LoadFile reads and strictly decodes a contract file. Unknown fields are
 // rejected so a typo can never weaken a check.
 func LoadFile(path string) (File, error) {
-	var f File
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return f, err
+		return File{}, err
 	}
-	if len(b) > maxContractBytes {
+	return Parse(b)
+}
+
+// Parse strictly decodes a contract document (see LoadFile).
+func Parse(b []byte) (File, error) {
+	var f File
+	if len(b) > MaxContractBytes {
 		return f, errors.New("contract file is larger than 64 KiB")
 	}
 	dec := json.NewDecoder(bytes.NewReader(b))

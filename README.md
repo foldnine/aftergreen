@@ -30,6 +30,7 @@ Built by [FoldNine](https://foldnine.dev). Apache-2.0.
 | HTTP deployment check (status + body text) | `aftergreen http` | works |
 | Local JSON evidence check | `aftergreen check` | works (demo/evaluation format) |
 | PostgreSQL destination check | `aftergreen postgres` | works; read-only, one validated query shape, tested against real PostgreSQL 17 |
+| Verification contract: several checks, one verdict | `aftergreen verify -f aftergreen.yaml` | on `main`, unreleased (planned for v0.2.0) |
 | GitHub Action | [foldnine/aftergreen-action](https://github.com/foldnine/aftergreen-action) | v1.0.1; HTTP checks only |
 
 Not built: n8n or other workflow-tool integrations, other databases, a hosted
@@ -112,6 +113,37 @@ AfterGreen runs one read-only, parameterized `SELECT` that it builds itself.
 It never runs SQL from configuration. Use a `SELECT`-only role. See
 [docs/postgres.md](docs/postgres.md).
 
+### Verify a whole deployment (unreleased)
+
+On `main`, planned for v0.2.0. Describe the expected outcomes in one file:
+
+```yaml
+# aftergreen.yaml
+version: 1
+deployment:
+  name: payment-api
+  revision: "${DEPLOY_SHA}"
+checks:
+  - id: correct-version
+    type: http
+    url: https://api.example.com/version
+    expect: { status: 200, contains: "${DEPLOY_SHA}" }
+  - id: release-recorded
+    type: postgres
+    contract: checks/deploy.json
+    key: "${DEPLOY_ID}"
+```
+
+```bash
+aftergreen verify -f aftergreen.yaml
+```
+
+Every check is observed independently. Any `FAILED` makes the deployment
+`FAILED`, otherwise any `UNKNOWN` makes it `UNKNOWN`. Unset variables, unknown
+fields and duplicate IDs are rejected before anything runs. See
+[docs/verify.md](docs/verify.md) and the local demo in
+[examples/verification/](examples/verification/).
+
 ### Exit codes
 
 | Code | Meaning |
@@ -141,6 +173,8 @@ evidence files.
 
 ## Design documents
 
+- [docs/architecture.md](docs/architecture.md): packages and design decisions
+- [docs/verify.md](docs/verify.md): verification contract format (`aftergreen verify`)
 - [docs/install.md](docs/install.md): every install method and how to verify a download
 - [docs/http-check.md](docs/http-check.md): HTTP check semantics and security boundary
 - [docs/postgres.md](docs/postgres.md): PostgreSQL contract, exact SQL, least-privilege role
