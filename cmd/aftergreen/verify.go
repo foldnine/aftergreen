@@ -102,7 +102,10 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 		return exitInvalid
 	}
 	if *jsonOut {
-		stdout.Write(doc)
+		if _, err := stdout.Write(doc); err != nil {
+			fmt.Fprintf(stderr, "error: verification finished (%s) but the report could not be printed: %v\n", rep.Verdict, err)
+			return exitInvalid
+		}
 	} else {
 		writeText(stdout, rep)
 	}
@@ -160,6 +163,9 @@ type pendingFile struct {
 }
 
 func createPending(target string) (*pendingFile, error) {
+	if fi, err := os.Stat(target); err == nil && !fi.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s exists and is not a regular file", target)
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(target), ".aftergreen-report-*")
 	if err != nil {
 		return nil, err

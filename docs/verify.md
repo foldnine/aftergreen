@@ -322,7 +322,7 @@ Rules:
   `contains`/`equals` values, PostgreSQL keys, connection strings, response
   bodies or row values. The deployment name and revision are included.
 - `--report` creates its temporary file before the first observation, so an
-  unwritable path fails with exit 2 immediately. If the final write fails
+  unwritable path or a directory fails with exit 2 immediately. If the final write fails
   anyway, AfterGreen prints the verdict on stderr and exits 2.
 - Format compatibility: fields may be added within version 1. Existing
   fields keep their name, type and meaning. Anything else needs a new

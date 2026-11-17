@@ -152,3 +152,26 @@ func TestVerifyUnknownMeaningIsExplicit(t *testing.T) {
 		t.Fatalf("exit %d\n%s", code, out)
 	}
 }
+
+func TestVerifyReportPathIsDirectory(t *testing.T) {
+	srv := versionServer(t, "a82f19c")
+	cfg := "version: 1\ndeployment: {name: web}\nchecks:\n  - {id: up, type: http, url: '" + srv.URL + "/health'}\n"
+	code, out, errOut := runCLI("verify", "-f", writeConfig(t, cfg), "--report", t.TempDir())
+	if code != exitInvalid || out != "" || !strings.Contains(errOut, "not a regular file") {
+		t.Fatalf("exit %d stdout %q stderr %q", code, out, errOut)
+	}
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, os.ErrClosed }
+
+func TestVerifyJSONStdoutFailure(t *testing.T) {
+	srv := versionServer(t, "a82f19c")
+	cfg := "version: 1\ndeployment: {name: web}\nchecks:\n  - {id: up, type: http, url: '" + srv.URL + "/health'}\n"
+	var errOut bytes.Buffer
+	if code := run([]string{"verify", "-f", writeConfig(t, cfg), "--json"}, failingWriter{}, &errOut); code != exitInvalid ||
+		!strings.Contains(errOut.String(), "verification finished (VERIFIED) but the report could not be printed") {
+		t.Fatalf("exit %d stderr %q", code, errOut.String())
+	}
+}
