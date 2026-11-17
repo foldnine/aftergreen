@@ -47,3 +47,18 @@ That is premature before any core release exists.
   reimplemented in Node. Before an adapter appears in the Action, revisit this
   ADR. By then signed, checksummed CLI releases (see `docs/release.md`) make
   option 1 viable.
+
+## Addendum (2026-11-17): `aftergreen verify`
+
+`aftergreen verify` adds JSON response assertions to the Go HTTP engine
+(`httpcheck.Contract.JSON`) and a retry loop around the engines
+(`internal/runner`). Neither changes the existing contract: with no JSON
+assertions, `httpcheck.Verify` behaves exactly as before, and every case in
+`conformance/http/cases.json` still passes unchanged.
+
+These features are CLI-only, like PostgreSQL. They are not in the
+conformance file because the Action does not implement them, and a case the
+Action cannot run would break its vendored copy. If the Action adopts JSON
+assertions, add their cases to the conformance file first, as this ADR
+requires. Go tests in `internal/httpcheck/jsonassert_test.go` cover them until
+then.

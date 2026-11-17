@@ -56,6 +56,7 @@ A runnable local demo is in [examples/verification/](../examples/verification/).
 | `id` | yes | Unique. 1–64 letters, digits, `.`, `_`, `-`; starts with a letter or digit |
 | `type` | yes | `http` or `postgres` |
 | `timeout` | no | Per observation, `1s`–`60s`, default `10s`. Must include a unit |
+| `retry` | no | Repeat the observation until stable or a deadline (see [Retries](#retries)) |
 
 ### `type: http`
 
@@ -66,6 +67,7 @@ Uses the same engine as `aftergreen http` ([semantics](http-check.md)).
 | `url` | yes | Absolute `http`/`https` URL. Supports `${VAR}` |
 | `expect.status` | no | Expected status, 100–599, default `200`. Plain decimal |
 | `expect.contains` | no | Literal text the body must contain. Supports `${VAR}` |
+| `expect.json` | no | List of JSON assertions on the body (see [JSON assertions](#json-assertions)) |
 
 ### `type: postgres`
 
@@ -80,6 +82,106 @@ The connection string is read from `AFTERGREEN_POSTGRES_URL`, only if the
 file has a postgres check. The contract file's own `key` is **ignored**. The
 key must come from the YAML file, so a fixed key can never verify a row left
 by an earlier deployment.
+
+## JSON assertions
+
+```yaml
+expect:
+  status: 200
+  json:
+    - path: $.revision
+      equals: "${DEPLOY_SHA}"
+    - path: $.instances[0].ready
+      equals: true
+```
+
+Each assertion has a `path` and an `equals`. Every assertion must hold. Up to
+16 per check.
+
+**Path syntax.** This is the whole language:
+
+| Syntax | Selects |
+| --- | --- |
+| `$` | the whole document |
+| `.name` | an object member. `name` uses letters, digits, `_`, `-` and doesn't start with a digit or `-` |
+| `[n]` | an array element, from `0` |
+
+There are no wildcards, filters, recursive descent, quoted keys or functions.
+Keys that need other characters can't be addressed yet.
+
+**Comparison** is exact and typed, using the YAML type of `equals`:
+
+| `equals` | Matches |
+| --- | --- |
+| `"a82f19c"`, `"3"` | a JSON string with exactly that value. `${VAR}` is substituted in strings only |
+| `3`, `0.5`, `1e3` | a JSON number with the same value (`3`, `3.0` and `3e0` are equal) |
+| `true` / `false` | a JSON boolean |
+| `null` | a JSON `null` |
+
+`"3"` never matches `3`. Write strings in quotes when they could look like a
+number or boolean.
+
+**Verdicts:**
+
+| Situation | Verdict |
+| --- | --- |
+| Status matches, every assertion holds | `VERIFIED` |
+| Path not found, different type, different value | `FAILED` (`json $.revision: value differs`) |
+| Body is not valid JSON: syntax error, invalid UTF-8, trailing data, empty | `FAILED` |
+| Wrong status | `FAILED`. The body is not parsed |
+| Duplicate object keys (the value is ambiguous) | `UNKNOWN` |
+| Number too large to compare exactly (e.g. `1e99999999999`) | `UNKNOWN` |
+| Nested more than 64 levels, body over 1 MiB, unreadable, timed out | `UNKNOWN` |
+
+Reasons name the path and JSON types only, never values.
+
+## Retries
+
+Right after a deploy, the old build often keeps answering for a while.
+`retry` observes a check repeatedly instead of once:
+
+```yaml
+retry:
+  interval: 5s       # pause between observations, 1s–5m, default 5s
+  deadline: 2m       # required: hard limit for the whole check, up to 30m
+  consecutive: 2     # VERIFIED observations in a row required, 1–10, default 1
+```
+
+```text
+00:00  HTTP 200, wrong revision      FAILED    (expected during a rollout; retry)
+00:05  HTTP 200, wrong revision      FAILED
+00:10  HTTP 200, expected revision   VERIFIED  1 of 2
+00:15  HTTP 200, expected revision   VERIFIED  2 of 2  →  VERIFIED
+```
+
+The check ends as soon as it has `consecutive` VERIFIED observations in a row.
+Otherwise it ends at `deadline`, and the **last completed observation**
+decides:
+
+| Last completed observation | Verdict |
+| --- | --- |
+| `FAILED` | `FAILED`: still wrong at the deadline |
+| `UNKNOWN` | `UNKNOWN`: still not observable |
+| `VERIFIED`, but fewer than `consecutive` in a row | `UNKNOWN`: not observed to be stable |
+
+Details:
+
+- A FAILED observation inside the window isn't final. It is what a rollout in
+  progress looks like. A non-VERIFIED observation resets the streak.
+- `deadline` is a hard limit that includes the observations themselves. An
+  observation cut short by it doesn't count and doesn't replace the previous
+  one. No observation starts unless a full `interval` fits before the deadline.
+- `deadline` must be at least the check's `timeout`, and long enough for
+  `consecutive` observations `interval` apart.
+- Cancelled (Ctrl-C, SIGTERM) before the check settles: `UNKNOWN`. A
+  mismatch only becomes final at the deadline.
+- Configuration errors are never retried. They exit 2 before anything runs.
+- Retries are opt-in per check and work for `http` and `postgres`. A check's
+  worst-case duration is its `deadline`, or its `timeout` without `retry`.
+  Checks run one after another, so a run's worst case is the sum.
+- Progress lines (`aftergreen: <id>: attempt 2 FAILED (...), retrying in 5s`)
+  go to stderr. The report on stdout shows the attempt count.
+- AfterGreen only reads. Retrying never changes anything.
 
 ## Validation
 
@@ -100,7 +202,7 @@ with code `2` and no verdict:
 ## Environment variables
 
 `${NAME}` is substituted **only** in `deployment.revision`, `url`,
-`expect.contains` and `key`. Anywhere else it is literal text that then fails
+`expect.contains`, string `expect.json[].equals` values and `key`. Anywhere else it is literal text that then fails
 validation where it matters.
 
 - `NAME` uses letters, digits and underscores. There are no defaults, no

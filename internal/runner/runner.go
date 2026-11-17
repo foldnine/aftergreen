@@ -5,6 +5,21 @@
 // deterministic. Each check gets an independent verdict. The overall verdict
 // is FAILED if any check failed, otherwise UNKNOWN if any check is unknown,
 // otherwise VERIFIED.
+//
+// A check with a retry policy is observed repeatedly, every Interval, until
+// it has been VERIFIED Consecutive times in a row or its Deadline passes.
+// During a rollout a wrong revision is expected for a while, so a FAILED
+// observation inside the window is not final. When the deadline passes, the
+// last completed observation decides:
+//
+//   - FAILED stays FAILED: the outcome was observed and was still wrong.
+//   - UNKNOWN stays UNKNOWN: the outcome could not be observed.
+//   - VERIFIED, but fewer than Consecutive times in a row: UNKNOWN, because
+//     the outcome was not observed to be stable.
+//
+// An observation cut short by the deadline is not "completed" and does not
+// replace an earlier one. If the run is cancelled before a retried check
+// settles, the check is UNKNOWN: a mismatch only becomes final at the deadline.
 package runner
 
 import (
@@ -39,7 +54,24 @@ type Result struct {
 	Verdict        string
 	Reasons        []string
 	ObservedStatus int // HTTP only; 0 when no response was observed
+	Attempts       int // observations made, including one cut short by the deadline
 	Duration       time.Duration
+}
+
+// Attempt describes one observation of a retried check, for progress output.
+type Attempt struct {
+	CheckID string
+	Number  int
+	Verdict string
+	Reasons []string
+	// Next is the pause before the next attempt; 0 when this was the last.
+	Next time.Duration
+}
+
+// Options configures Run.
+type Options struct {
+	Now      func() time.Time // defaults to time.Now
+	Progress func(Attempt)    // optional; called after each attempt of a retried check
 }
 
 // Report is the outcome of a whole run.
@@ -88,8 +120,12 @@ func Overall(verdicts ...string) string {
 
 // Run executes every check in order. If ctx is cancelled, the running check
 // and every check after it are reported UNKNOWN; cancellation never produces
-// VERIFIED. now is the clock (time.Now in production).
-func Run(ctx context.Context, f *config.File, eng Engines, now func() time.Time) (Report, error) {
+// VERIFIED.
+func Run(ctx context.Context, f *config.File, eng Engines, opts Options) (Report, error) {
+	now := opts.Now
+	if now == nil {
+		now = time.Now
+	}
 	rep := Report{Deployment: f.Deployment, Started: now()}
 	verdicts := make([]string, 0, len(f.Checks))
 	for _, c := range f.Checks {
@@ -98,10 +134,17 @@ func Run(ctx context.Context, f *config.File, eng Engines, now func() time.Time)
 		if ctx.Err() != nil {
 			res.Verdict, res.Reasons = Unknown, []string{"not run: verification was cancelled"}
 		} else {
-			if err := runOne(ctx, c, eng, &res); err != nil {
+			var err error
+			if c.Retry == nil {
+				res.Attempts = 1
+				err = observe(ctx, c, eng, &res)
+			} else {
+				err = observeWithRetry(ctx, c, eng, opts.Progress, &res)
+			}
+			if err != nil {
 				return rep, fmt.Errorf("check %q: %w", c.ID, err)
 			}
-			if errors.Is(ctx.Err(), context.Canceled) && res.Verdict == Unknown {
+			if c.Retry == nil && errors.Is(ctx.Err(), context.Canceled) && res.Verdict == Unknown {
 				res.Reasons = append(res.Reasons, "verification was cancelled")
 			}
 		}
@@ -114,7 +157,76 @@ func Run(ctx context.Context, f *config.File, eng Engines, now func() time.Time)
 	return rep, nil
 }
 
-func runOne(ctx context.Context, c config.Check, eng Engines, res *Result) error {
+func observeWithRetry(ctx context.Context, c config.Check, eng Engines, progress func(Attempt), res *Result) error {
+	r := c.Retry
+	dctx, cancel := context.WithTimeout(ctx, r.Deadline)
+	defer cancel()
+	var last *Result // last completed observation
+	streak := 0
+	for n := 1; ; n++ {
+		cur := Result{ID: c.ID, Type: c.Type}
+		if err := observe(dctx, c, eng, &cur); err != nil {
+			return err
+		}
+		res.Attempts = n
+		if dctx.Err() != nil && cur.Verdict != Verified && last != nil {
+			// Cut short by the deadline or cancellation: keep the last completed one.
+			if progress != nil {
+				progress(Attempt{CheckID: c.ID, Number: n, Verdict: cur.Verdict,
+					Reasons: append(append([]string{}, cur.Reasons...), "cut short; not counted")})
+			}
+			break
+		}
+		last = &cur
+		if cur.Verdict == Verified {
+			streak++
+		} else {
+			streak = 0
+		}
+		// Stop when stable, out of time, or when the next attempt could only
+		// start at or after the deadline.
+		deadline, _ := dctx.Deadline()
+		done := streak >= r.Consecutive || dctx.Err() != nil || time.Until(deadline) <= r.Interval
+		a := Attempt{CheckID: c.ID, Number: n, Verdict: cur.Verdict, Reasons: cur.Reasons}
+		if !done {
+			a.Next = r.Interval
+		}
+		if progress != nil {
+			progress(a)
+		}
+		if done {
+			break
+		}
+		t := time.NewTimer(r.Interval)
+		select {
+		case <-t.C:
+		case <-dctx.Done():
+			t.Stop()
+		}
+		if dctx.Err() != nil {
+			break
+		}
+	}
+
+	res.Verdict, res.Reasons, res.ObservedStatus = last.Verdict, last.Reasons, last.ObservedStatus
+	switch {
+	case res.Verdict == Verified && streak >= r.Consecutive:
+		// stable
+	case errors.Is(ctx.Err(), context.Canceled):
+		res.Verdict = Unknown
+		res.Reasons = append(append([]string{}, last.Reasons...),
+			fmt.Sprintf("cancelled before the check settled (last observation: %s)", last.Verdict))
+	case res.Verdict == Verified:
+		res.Verdict = Unknown
+		res.Reasons = []string{fmt.Sprintf("verified %d of %d required consecutive observations before the %s deadline", streak, r.Consecutive, r.Deadline)}
+	default:
+		res.Reasons = append(append([]string{}, last.Reasons...),
+			fmt.Sprintf("still %s after %d attempts within the %s deadline", res.Verdict, res.Attempts, r.Deadline))
+	}
+	return nil
+}
+
+func observe(ctx context.Context, c config.Check, eng Engines, res *Result) error {
 	switch {
 	case c.HTTP != nil:
 		v, err := eng.HTTP(ctx, *c.HTTP)

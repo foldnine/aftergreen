@@ -8,7 +8,8 @@ A local demo of `aftergreen verify`. Nothing leaves your machine.
 
 Files:
 
-- `aftergreen.yaml`: two HTTP checks against a local server
+- `aftergreen.yaml`: two HTTP checks against a local server, one with a JSON
+  assertion and retries
 - `site/version.json`: what the "deployed app" serves (`revision: a82f19c`)
 - `with-postgres.yaml` + `checks/deploy.json`: HTTP plus PostgreSQL, for a
   real environment (it needs `AFTERGREEN_POSTGRES_URL`)
@@ -21,17 +22,18 @@ cd examples/verification
 # 1. Start the "deployed app" (any static file server works)
 python3 -m http.server 8000 --bind 127.0.0.1 --directory site &
 
-# 2. The revision that is live: VERIFIED, exit 0
+# 2. The revision that is live: VERIFIED after two matching observations, exit 0
 DEPLOY_SHA=a82f19c aftergreen verify -f aftergreen.yaml
 
-# 3. A revision that is not live: FAILED, exit 1.
+# 3. A revision that is not live: retried until the 6s deadline, then FAILED, exit 1.
 #    service-up still passes: HTTP 200 alone doesn't prove the new build is serving.
+#    Progress lines go to stderr; the report goes to stdout.
 DEPLOY_SHA=b7e01d4 aftergreen verify -f aftergreen.yaml
 
 # 4. Forgot to set the variable: invalid input, exit 2, nothing checked
 aftergreen verify -f aftergreen.yaml
 
-# 5. Stop the server, then run again: UNKNOWN, exit 3
+# 5. Stop the server, then run again: UNKNOWN after the deadline, exit 3
 kill %1
 DEPLOY_SHA=a82f19c aftergreen verify -f aftergreen.yaml
 ```
