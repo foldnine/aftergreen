@@ -69,11 +69,8 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 	}
 	writeText(stdout, rep)
 
-	verdicts := make([]string, len(rep.Checks))
-	for i, c := range rep.Checks {
-		verdicts[i] = c.Verdict
-	}
-	return exitCode(verdicts...)
+	// The exit code follows the printed overall verdict, never a recount.
+	return exitCode(rep.Verdict)
 }
 
 func writeText(w io.Writer, rep runner.Report) {

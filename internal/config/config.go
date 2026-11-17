@@ -73,7 +73,7 @@ type LookupFunc func(string) (string, bool)
 
 // raw* mirror the YAML document. Pointers distinguish "absent" from "empty".
 type rawFile struct {
-	Version    *int           `yaml:"version"`
+	Version    *decimal       `yaml:"version"`
 	Deployment *rawDeployment `yaml:"deployment"`
 	Checks     []rawCheck     `yaml:"checks"`
 }
@@ -187,6 +187,19 @@ func checkNodes(n *yaml.Node) error {
 	if n.Style&yaml.TaggedStyle != 0 {
 		return fmt.Errorf("line %d: explicit YAML tags are not supported", n.Line)
 	}
+	if n.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			k, v := n.Content[i], n.Content[i+1]
+			if k.Tag == "!!merge" {
+				return fmt.Errorf("line %d: YAML merge keys (<<) are not supported", k.Line)
+			}
+			// "contains:" with no value would otherwise decode as absent and
+			// silently drop the assertion.
+			if v.Kind == yaml.ScalarNode && v.Tag == "!!null" && !nullAllowed[k.Value] {
+				return fmt.Errorf("line %d: %s has no value (remove the field or give it a value)", k.Line, k.Value)
+			}
+		}
+	}
 	for _, c := range n.Content {
 		if err := checkNodes(c); err != nil {
 			return err
@@ -194,6 +207,9 @@ func checkNodes(n *yaml.Node) error {
 	}
 	return nil
 }
+
+// nullAllowed lists fields whose value may be YAML null.
+var nullAllowed = map[string]bool{}
 
 func yamlError(err error) error {
 	msg := strings.TrimPrefix(err.Error(), "yaml: ")
@@ -207,10 +223,10 @@ func resolve(raw *rawFile, baseDir string, lookup LookupFunc) (*File, error) {
 	if raw.Version == nil {
 		return nil, fmt.Errorf("version is required (supported: %d)", SupportedVersion)
 	}
-	if *raw.Version != SupportedVersion {
+	if int(*raw.Version) != SupportedVersion {
 		return nil, fmt.Errorf("unsupported version %d (this aftergreen supports version %d)", *raw.Version, SupportedVersion)
 	}
-	out := &File{Version: *raw.Version}
+	out := &File{Version: int(*raw.Version)}
 
 	if raw.Deployment == nil || raw.Deployment.Name == nil {
 		return nil, errors.New("deployment.name is required")
@@ -311,6 +327,9 @@ func resolveHTTP(rc rawCheck, timeout time.Duration, lookup LookupFunc) (*httpch
 	}
 	h := &httpcheck.Contract{URL: u, ExpectedStatus: 200, Timeout: timeout}
 	if rc.Expect != nil {
+		if rc.Expect.Status == nil && rc.Expect.Contains == nil {
+			return nil, errors.New("expect must contain at least one assertion (or remove it to check status 200)")
+		}
 		if rc.Expect.Status != nil {
 			h.ExpectedStatus = int(*rc.Expect.Status)
 		}
@@ -318,6 +337,9 @@ func resolveHTTP(rc rawCheck, timeout time.Duration, lookup LookupFunc) (*httpch
 			s, err := expand(*rc.Expect.Contains, "expect.contains", lookup)
 			if err != nil {
 				return nil, err
+			}
+			if s == "" {
+				return nil, errors.New("expect.contains must not be empty")
 			}
 			h.ExpectedBodySubstring = s
 		}

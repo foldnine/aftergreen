@@ -89,8 +89,11 @@ with code `2` and no verdict:
 - Unknown fields, at any level. A typo can't silently drop an assertion.
 - Duplicate check IDs, unknown types, fields that don't belong to the
   check's type, unsupported versions.
-- YAML anchors, aliases, explicit tags, duplicate keys and multiple
-  documents. Files over 64 KiB.
+- Fields with no value (`contains:`, `contains: null`, `status: ~`), an
+  empty `contains` and an empty `expect`. Each would otherwise silently
+  remove an assertion.
+- YAML anchors, aliases, merge keys (`<<`), explicit tags, duplicate keys and
+  multiple documents. Non-integer versions (`1.0`). Files over 64 KiB.
 - Invalid URLs (credentials, fragments, other schemes), statuses, timeouts,
   or PostgreSQL contracts (including identifier validation).
 

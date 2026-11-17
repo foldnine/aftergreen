@@ -92,7 +92,8 @@ func TestInvalid(t *testing.T) {
 		"unknown top field":    {head + "  - {id: a, type: http, url: 'https://example.com/'}\nretries: 3\n", `unknown field "retries"`},
 		"unknown check field":  {http("    expects: {status: 200}\n"), `unknown field "expects"`},
 		"unknown expect field": {http("    expect: {statuss: 200}\n"), `unknown field "statuss"`},
-		"no checks":            {head, "at least one check"},
+		"no checks":            {head, "checks has no value"},
+		"empty checks":         {"version: 1\ndeployment: {name: web}\nchecks: []\n", "at least one check"},
 		"missing id":           {head + "  - {type: http, url: 'https://example.com/'}\n", "id is required"},
 		"bad id":               {head + "  - {id: 'a b', type: http, url: 'https://example.com/'}\n", "id is required"},
 		"duplicate id":         {head + "  - {id: a, type: http, url: 'https://example.com/'}\n  - {id: a, type: http, url: 'https://example.com/'}\n", `check "a": duplicate id`},
@@ -128,6 +129,15 @@ func TestInvalid(t *testing.T) {
 		"explicit tag":         {head + "  - {id: !!str a, type: http, url: 'https://example.com/'}\n", "explicit YAML tags"},
 		"two documents":        {head + "  - {id: a, type: http, url: 'https://example.com/'}\n---\nversion: 1\n", "single YAML document"},
 		"duplicate key":        {"version: 1\nversion: 1\n", "invalid YAML"},
+		"null contains":        {http("    expect:\n      contains: null\n"), "contains has no value"},
+		"missing contains":     {http("    expect:\n      status: 200\n      contains:\n"), "contains has no value"},
+		"empty contains":       {http("    expect: {contains: ''}\n"), "expect.contains must not be empty"},
+		"null expect":          {http("    expect:\n"), "expect has no value"},
+		"empty expect":         {http("    expect: {}\n"), "expect must contain at least one assertion"},
+		"null status":          {http("    expect: {status: ~}\n"), "status has no value"},
+		"null key":             {pg("    contract: checks/deploy.json\n    key:\n"), "key has no value"},
+		"merge key":            {http("    expect:\n      <<: {status: 201}\n      contains: x\n"), "merge keys"},
+		"float version":        {"version: 1.0\n", "decimal integer"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
