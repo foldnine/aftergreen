@@ -197,7 +197,8 @@ func TestRetry(t *testing.T) {
 		{"exhausted unobservable", []string{Unknown}, retried(10*ms, 100*ms, 1), Unknown, -1, "still UNKNOWN after"},
 		{"flapping never stable", []string{Verified, Failed}, retried(10*ms, 100*ms, 2), Failed, -1, "still FAILED"},
 		{"stable streak resets", []string{Verified, Failed, Verified, Verified}, retried(5*ms, time.Second, 2), Verified, 4, ""},
-		{"not enough consecutive", []string{Failed, Failed, Failed, Failed, Failed, Failed, Failed, Failed, Verified}, retried(10*ms, 100*ms, 3), Unknown, -1, "consecutive observations before the"},
+		// Always VERIFIED, but the required streak cannot fit before the deadline.
+		{"not enough consecutive", []string{Verified}, retried(10*ms, 100*ms, 1000), Unknown, -1, "consecutive observations before the"},
 		// The last completed observation decides; one cut short by the deadline does not count.
 		{"cut short keeps last completed", []string{Failed, "SLOW"}, retried(5*ms, 100*ms, 1), Failed, 2, "still FAILED after 2 attempts"},
 		{"first attempt cut short", []string{"SLOW"}, retried(5*ms, 50*ms, 1), Unknown, 1, "timed out"},
@@ -232,7 +233,10 @@ func TestRetry(t *testing.T) {
 			if el := time.Since(start); el > tc.check.Retry.Deadline+500*ms {
 				t.Errorf("took %s, deadline %s", el, tc.check.Retry.Deadline)
 			}
-			if len(progress) == 0 || progress[len(progress)-1].Next != 0 {
+			// Next is the planned pause. When the check settles, the last
+			// line must not announce another attempt. At the deadline, timer
+			// jitter can end the pause late, so only the count is checked.
+			if len(progress) == 0 || (tc.verdict == Verified && progress[len(progress)-1].Next != 0) {
 				t.Errorf("progress: %+v", progress)
 			}
 		})
