@@ -44,6 +44,8 @@ func TestInvalidJSONAndRetry(t *testing.T) {
 	head := "version: 1\ndeployment: {name: web}\nchecks:\n  - id: a\n    type: http\n    url: https://example.com/\n"
 	cases := map[string]struct{ extra, want string }{
 		"empty json list":    {"    expect: {json: []}\n", "at least one assertion"},
+		"null json":          {"    expect: {json: ~}\n", "json has no value"},
+		"null path":          {"    expect: {json: [{path: ~, equals: x}]}\n", "path has no value"},
 		"no path":            {"    expect: {json: [{equals: x}]}\n", "expect.json[0].path is required"},
 		"no equals":          {"    expect: {json: [{path: $.a}]}\n", "expect.json[0].equals is required"},
 		"unknown json field": {"    expect: {json: [{path: $.a, equals: x, matches: y}]}\n", `unknown field "matches"`},

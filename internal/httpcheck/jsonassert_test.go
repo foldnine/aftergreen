@@ -101,6 +101,12 @@ func TestEvaluateJSONUntrustedBodies(t *testing.T) {
 	if _, unk := evaluateJSON([]byte(strings.Repeat("[", 100)+strings.Repeat("]", 100)), as); unk == "" {
 		t.Error("over-deep documents must be UNKNOWN")
 	}
+	if _, unk := evaluateJSON([]byte(`{"n":1e99999999999}`), []JSONAssertion{{"$.n", json.Number("1")}}); unk == "" {
+		t.Error("numbers beyond exact range must be UNKNOWN")
+	}
+	if err := validateAssertions([]JSONAssertion{{"$.n", json.Number("1e99999999999")}}); err == nil {
+		t.Error("unparseable expected number accepted")
+	}
 	// Duplicate keys: which one is "the" revision depends on the parser.
 	if _, unk := evaluateJSON([]byte(`{"revision":"0ld0ld0","revision":"a82f19c"}`), as); unk == "" {
 		t.Error("duplicate keys must be UNKNOWN")

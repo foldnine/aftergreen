@@ -130,6 +130,7 @@ number or boolean.
 | Body is not valid JSON: syntax error, invalid UTF-8, trailing data, empty | `FAILED` |
 | Wrong status | `FAILED`. The body is not parsed |
 | Duplicate object keys (the value is ambiguous) | `UNKNOWN` |
+| Number too large to compare exactly (e.g. `1e99999999999`) | `UNKNOWN` |
 | Nested more than 64 levels, body over 1 MiB, unreadable, timed out | `UNKNOWN` |
 
 Reasons name the path and JSON types only, never values.

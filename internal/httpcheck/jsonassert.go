@@ -81,7 +81,7 @@ func validateAssertions(as []JSONAssertion) error {
 		switch v := a.Equals.(type) {
 		case nil, bool, string:
 		case json.Number:
-			if !jsonNumber.MatchString(string(v)) {
+			if _, ok := new(big.Rat).SetString(string(v)); !ok || !jsonNumber.MatchString(string(v)) {
 				return fmt.Errorf("JSON assertion %s: expected value is not a valid JSON number", a.Path)
 			}
 		default:
@@ -200,10 +200,15 @@ func typeName(v any) string {
 	return "unknown"
 }
 
-func numbersEqual(a, b json.Number) bool {
+// numbersEqual compares exactly. ok is false when a number is too large to
+// represent exactly (e.g. an exponent beyond big.Rat's range).
+func numbersEqual(a, b json.Number) (equal, ok bool) {
 	x, ok1 := new(big.Rat).SetString(string(a))
 	y, ok2 := new(big.Rat).SetString(string(b))
-	return ok1 && ok2 && x.Cmp(y) == 0
+	if !ok1 || !ok2 {
+		return false, false
+	}
+	return x.Cmp(y) == 0, true
 }
 
 // evaluateJSON checks assertions against a fully read body. It returns the
@@ -241,7 +246,10 @@ func evaluateJSON(body []byte, as []JSONAssertion) (reasons []string, unknownRea
 		case string:
 			equal = got.(string) == w
 		case json.Number:
-			equal = numbersEqual(got.(json.Number), w)
+			var ok bool
+			if equal, ok = numbersEqual(got.(json.Number), w); !ok {
+				return nil, fmt.Sprintf("json %s: number cannot be compared exactly", a.Path)
+			}
 		}
 		if !equal {
 			reasons = append(reasons, fmt.Sprintf("json %s: value differs", a.Path))

@@ -240,7 +240,7 @@ func checkNodes(n *yaml.Node) error {
 }
 
 // nullAllowed lists fields whose value may be YAML null.
-var nullAllowed = map[string]bool{}
+var nullAllowed = map[string]bool{"equals": true}
 
 func yamlError(err error) error {
 	msg := strings.TrimPrefix(err.Error(), "yaml: ")
@@ -365,7 +365,7 @@ func resolveHTTP(rc rawCheck, timeout time.Duration, lookup LookupFunc) (*httpch
 	}
 	h := &httpcheck.Contract{URL: u, ExpectedStatus: 200, Timeout: timeout}
 	if rc.Expect != nil {
-		if rc.Expect.Status == nil && rc.Expect.Contains == nil {
+		if rc.Expect.Status == nil && rc.Expect.Contains == nil && rc.Expect.JSON == nil {
 			return nil, errors.New("expect must contain at least one assertion (or remove it to check status 200)")
 		}
 		if rc.Expect.Status != nil {
