@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -30,6 +31,8 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 	path := "aftergreen.yaml"
 	f.StringVar(&path, "f", path, "path to the verification contract")
 	f.StringVar(&path, "file", path, "same as -f")
+	jsonOut := f.Bool("json", false, "print the JSON report on stdout instead of the text report (no progress lines)")
+	reportPath := f.String("report", "", "also write the JSON report to this file")
 	if !parseFlags(f, args, stderr) {
 		return exitInvalid
 	}
@@ -51,6 +54,17 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 			return exitInvalid
 		}
 	}
+	// Create the report file before observing anything, so an unwritable path
+	// is invalid usage rather than a lost result after a long run.
+	var report *pendingFile
+	if *reportPath != "" {
+		if report, err = createPending(*reportPath); err != nil {
+			fmt.Fprintln(stderr, "error: cannot write report:", err)
+			return exitInvalid
+		}
+		defer report.abort()
+	}
+
 	httpcheck.UserAgent = "aftergreen/" + version
 	engines := runner.Engines{
 		HTTP: httpcheck.Verify,
@@ -63,23 +77,41 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 	// are reported UNKNOWN rather than silently dropped.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	opts := runner.Options{Progress: func(a runner.Attempt) {
-		// Progress goes to stderr so stdout stays the report.
-		line := fmt.Sprintf("aftergreen: %s: attempt %d %s", a.CheckID, a.Number, a.Verdict)
-		if len(a.Reasons) > 0 {
-			line += " (" + strings.Join(a.Reasons, "; ") + ")"
+	opts := runner.Options{}
+	if !*jsonOut {
+		opts.Progress = func(a runner.Attempt) {
+			// Progress goes to stderr so stdout stays the report.
+			line := fmt.Sprintf("aftergreen: %s: attempt %d %s", a.CheckID, a.Number, a.Verdict)
+			if len(a.Reasons) > 0 {
+				line += " (" + strings.Join(a.Reasons, "; ") + ")"
+			}
+			if a.Next > 0 {
+				line += fmt.Sprintf(", retrying in %s", a.Next)
+			}
+			fmt.Fprintln(stderr, line)
 		}
-		if a.Next > 0 {
-			line += fmt.Sprintf(", retrying in %s", a.Next)
-		}
-		fmt.Fprintln(stderr, line)
-	}}
+	}
 	rep, err := runner.Run(ctx, cfg, engines, opts)
 	if err != nil {
 		fmt.Fprintln(stderr, "error: invalid configuration:", err)
 		return exitInvalid
 	}
-	writeText(stdout, rep)
+	doc, err := rep.JSON(version)
+	if err != nil {
+		fmt.Fprintln(stderr, "error: cannot encode report:", err)
+		return exitInvalid
+	}
+	if *jsonOut {
+		stdout.Write(doc)
+	} else {
+		writeText(stdout, rep)
+	}
+	if report != nil {
+		if err := report.commit(doc); err != nil {
+			fmt.Fprintf(stderr, "error: verification finished (%s) but the report could not be written: %v\n", rep.Verdict, err)
+			return exitInvalid
+		}
+	}
 
 	// The exit code follows the printed overall verdict, never a recount.
 	return exitCode(rep.Verdict)
@@ -107,10 +139,57 @@ func writeText(w io.Writer, rep runner.Report) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, rule)
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "Deployment verification %s\n\n", rep.Verdict)
+	fmt.Fprintf(w, "Deployment verification %s\n", rep.Verdict)
+	fmt.Fprintf(w, "%s\n\n", verdictMeaning[rep.Verdict])
 	verified, failed, unknown := rep.Counts()
 	fmt.Fprintf(w, "%d verified\n%d failed\n%d unknown\n\n", verified, failed, unknown)
 	fmt.Fprintf(w, "Duration: %s\n", formatDuration(rep.Completed.Sub(rep.Started)))
+}
+
+var verdictMeaning = map[string]string{
+	runner.Verified: "Every expected outcome was observed.",
+	runner.Failed:   "At least one expected outcome was observed to be wrong.",
+	runner.Unknown:  "No outcome was wrong, but at least one could not be observed. This is not a pass.",
+}
+
+// pendingFile is written to a temporary file next to the target and renamed
+// into place, so readers never see a partial report.
+type pendingFile struct {
+	tmp    *os.File
+	target string
+}
+
+func createPending(target string) (*pendingFile, error) {
+	tmp, err := os.CreateTemp(filepath.Dir(target), ".aftergreen-report-*")
+	if err != nil {
+		return nil, err
+	}
+	return &pendingFile{tmp: tmp, target: target}, nil
+}
+
+func (p *pendingFile) commit(b []byte) error {
+	_, err := p.tmp.Write(b)
+	if cerr := p.tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(p.tmp.Name(), 0o644)
+	}
+	if err == nil {
+		err = os.Rename(p.tmp.Name(), p.target)
+	}
+	if err == nil {
+		p.tmp = nil
+	}
+	return err
+}
+
+// abort removes the temporary file unless commit succeeded.
+func (p *pendingFile) abort() {
+	if p.tmp != nil {
+		p.tmp.Close()
+		os.Remove(p.tmp.Name())
+	}
 }
 
 func formatDuration(d time.Duration) string {
