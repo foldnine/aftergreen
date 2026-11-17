@@ -9,6 +9,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -36,6 +37,13 @@ const (
 	// DefaultTimeout applies to a check that does not set timeout.
 	DefaultTimeout = 10 * time.Second
 
+	// Retry bounds.
+	DefaultRetryInterval = 5 * time.Second
+	MinRetryInterval     = time.Second
+	MaxRetryInterval     = 5 * time.Minute
+	MaxRetryDeadline     = 30 * time.Minute
+	MaxConsecutive       = 10
+
 	TypeHTTP     = "http"
 	TypePostgres = "postgres"
 )
@@ -62,10 +70,20 @@ type Check struct {
 	ID      string
 	Type    string
 	Timeout time.Duration
-	HTTP    *httpcheck.Contract
+	// Retry is nil for a single observation.
+	Retry *Retry
+	HTTP  *httpcheck.Contract
 	// Postgres has its KeyValue set from the configuration's key, never from
 	// the contract file.
 	Postgres *postgres.Contract
+}
+
+// Retry repeats a check's observation until it is stable or the deadline
+// passes. See internal/runner for the exact semantics.
+type Retry struct {
+	Interval    time.Duration // pause between observations
+	Deadline    time.Duration // hard limit for the whole check, all attempts included
+	Consecutive int           // VERIFIED observations in a row required
 }
 
 // LookupFunc resolves an environment variable, like os.LookupEnv.
@@ -84,9 +102,10 @@ type rawDeployment struct {
 }
 
 type rawCheck struct {
-	ID      *string `yaml:"id"`
-	Type    *string `yaml:"type"`
-	Timeout *string `yaml:"timeout"`
+	ID      *string   `yaml:"id"`
+	Type    *string   `yaml:"type"`
+	Timeout *string   `yaml:"timeout"`
+	Retry   *rawRetry `yaml:"retry"`
 	// http
 	URL    *string    `yaml:"url"`
 	Expect *rawExpect `yaml:"expect"`
@@ -96,8 +115,20 @@ type rawCheck struct {
 }
 
 type rawExpect struct {
-	Status   *decimal `yaml:"status"`
-	Contains *string  `yaml:"contains"`
+	Status   *decimal  `yaml:"status"`
+	Contains *string   `yaml:"contains"`
+	JSON     []rawJSON `yaml:"json"`
+}
+
+type rawJSON struct {
+	Path   *string   `yaml:"path"`
+	Equals yaml.Node `yaml:"equals"` // Kind 0 when absent; typed below
+}
+
+type rawRetry struct {
+	Interval    *string  `yaml:"interval"`
+	Deadline    *string  `yaml:"deadline"`
+	Consecutive *decimal `yaml:"consecutive"`
 }
 
 // decimal is an integer written in plain decimal. YAML would otherwise read
@@ -288,6 +319,13 @@ func resolveCheck(rc rawCheck, baseDir string, lookup LookupFunc) (Check, error)
 		}
 		c.Timeout = d
 	}
+	if rc.Retry != nil {
+		r, err := resolveRetry(*rc.Retry, c.Timeout)
+		if err != nil {
+			return c, err
+		}
+		c.Retry = r
+	}
 	switch c.Type {
 	case TypeHTTP:
 		if err := onlyFields(c.Type, map[string]bool{"contract": rc.Contract != nil, "key": rc.Key != nil}); err != nil {
@@ -343,12 +381,94 @@ func resolveHTTP(rc rawCheck, timeout time.Duration, lookup LookupFunc) (*httpch
 			}
 			h.ExpectedBodySubstring = s
 		}
+		if rc.Expect.JSON != nil && len(rc.Expect.JSON) == 0 {
+			return nil, errors.New("expect.json must list at least one assertion")
+		}
+		for i, rj := range rc.Expect.JSON {
+			a, err := resolveJSON(rj, i, lookup)
+			if err != nil {
+				return nil, err
+			}
+			h.JSON = append(h.JSON, a)
+		}
 	}
 	// Validate never includes the URL in its errors.
 	if _, err := h.Validate(); err != nil {
 		return nil, err
 	}
 	return h, nil
+}
+
+// resolveJSON converts one assertion. equals keeps its YAML type: "3" is a
+// string, 3 a number, true a boolean, null null. ${VAR} is substituted in
+// strings only.
+func resolveJSON(rj rawJSON, i int, lookup LookupFunc) (httpcheck.JSONAssertion, error) {
+	field := fmt.Sprintf("expect.json[%d]", i)
+	if rj.Path == nil {
+		return httpcheck.JSONAssertion{}, fmt.Errorf("%s.path is required", field)
+	}
+	a := httpcheck.JSONAssertion{Path: *rj.Path}
+	n := rj.Equals
+	if n.Kind == 0 {
+		return a, fmt.Errorf("%s.equals is required", field)
+	}
+	if n.Kind != yaml.ScalarNode {
+		return a, fmt.Errorf("%s.equals must be a string, number, boolean or null", field)
+	}
+	switch n.Tag {
+	case "!!str":
+		v, err := expand(n.Value, field+".equals", lookup)
+		if err != nil {
+			return a, err
+		}
+		a.Equals = v
+	case "!!int", "!!float":
+		a.Equals = json.Number(n.Value) // JSON number syntax is checked by httpcheck
+	case "!!bool":
+		a.Equals = n.Value == "true"
+		if n.Value != "true" && n.Value != "false" {
+			return a, fmt.Errorf("%s.equals: write booleans as true or false", field)
+		}
+	case "!!null":
+		if n.Value != "null" {
+			return a, fmt.Errorf("%s.equals: write null as null", field)
+		}
+		a.Equals = nil
+	default:
+		return a, fmt.Errorf("%s.equals must be a string, number, boolean or null", field)
+	}
+	return a, nil
+}
+
+func resolveRetry(rr rawRetry, timeout time.Duration) (*Retry, error) {
+	r := &Retry{Interval: DefaultRetryInterval, Consecutive: 1}
+	if rr.Interval != nil {
+		d, err := time.ParseDuration(*rr.Interval)
+		if err != nil || d < MinRetryInterval || d > MaxRetryInterval {
+			return nil, errors.New(`retry.interval must be a duration between 1s and 5m, e.g. "5s"`)
+		}
+		r.Interval = d
+	}
+	if rr.Deadline == nil {
+		return nil, errors.New(`retry.deadline is required: the longest time to keep trying, e.g. "2m"`)
+	}
+	d, err := time.ParseDuration(*rr.Deadline)
+	if err != nil || d < timeout || d > MaxRetryDeadline {
+		return nil, fmt.Errorf("retry.deadline must be a duration between the check timeout (%s) and 30m", timeout)
+	}
+	r.Deadline = d
+	if rr.Consecutive != nil {
+		n := int(*rr.Consecutive)
+		if n < 1 || n > MaxConsecutive {
+			return nil, fmt.Errorf("retry.consecutive must be between 1 and %d", MaxConsecutive)
+		}
+		r.Consecutive = n
+	}
+	// n consecutive observations need at least (n-1) intervals.
+	if time.Duration(r.Consecutive-1)*r.Interval >= r.Deadline {
+		return nil, fmt.Errorf("retry.deadline (%s) is too short for %d consecutive observations %s apart", r.Deadline, r.Consecutive, r.Interval)
+	}
+	return r, nil
 }
 
 func resolvePostgres(rc rawCheck, baseDir string, lookup LookupFunc) (*postgres.Contract, error) {

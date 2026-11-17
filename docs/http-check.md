@@ -32,6 +32,10 @@ These semantics are pinned by [`conformance/http/cases.json`](../conformance/htt
   system roots is required.
 - No retries. No custom headers or authentication yet.
 
+JSON response assertions and retries exist only in contract files run by
+[`aftergreen verify`](verify.md). The `http` command and the GitHub Action
+behave exactly as described above.
+
 ## Security and limitations
 
 Use this only for **trusted endpoints specified by repository maintainers**.

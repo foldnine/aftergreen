@@ -17,10 +17,18 @@ checks:
     expect:
       status: 200
 
+  # Right after a deploy the old build may still answer for a while. Retry
+  # every 2s for up to 6s and require two matching observations in a row.
   - id: correct-revision
     type: http
     url: http://127.0.0.1:8000/version.json
     timeout: 5s
     expect:
       status: 200
-      contains: '"revision":"${DEPLOY_SHA}"'
+      json:
+        - path: $.revision
+          equals: "${DEPLOY_SHA}"
+    retry:
+      interval: 2s
+      deadline: 6s
+      consecutive: 2

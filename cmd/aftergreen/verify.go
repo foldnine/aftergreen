@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -62,7 +63,18 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 	// are reported UNKNOWN rather than silently dropped.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	rep, err := runner.Run(ctx, cfg, engines, time.Now)
+	opts := runner.Options{Progress: func(a runner.Attempt) {
+		// Progress goes to stderr so stdout stays the report.
+		line := fmt.Sprintf("aftergreen: %s: attempt %d %s", a.CheckID, a.Number, a.Verdict)
+		if len(a.Reasons) > 0 {
+			line += " (" + strings.Join(a.Reasons, "; ") + ")"
+		}
+		if a.Next > 0 {
+			line += fmt.Sprintf(", retrying in %s", a.Next)
+		}
+		fmt.Fprintln(stderr, line)
+	}}
+	rep, err := runner.Run(ctx, cfg, engines, opts)
 	if err != nil {
 		fmt.Fprintln(stderr, "error: invalid configuration:", err)
 		return exitInvalid
@@ -83,7 +95,11 @@ func writeText(w io.Writer, rep runner.Report) {
 	}
 	fmt.Fprintln(w)
 	for _, c := range rep.Checks {
-		fmt.Fprintf(w, "%-8s  %s\n", c.Verdict, c.ID)
+		attempts := ""
+		if c.Attempts > 1 {
+			attempts = fmt.Sprintf(" (%d attempts)", c.Attempts)
+		}
+		fmt.Fprintf(w, "%-8s  %s%s\n", c.Verdict, c.ID, attempts)
 		for _, reason := range c.Reasons {
 			fmt.Fprintf(w, "%-8s    - %s\n", "", reason)
 		}

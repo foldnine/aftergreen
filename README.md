@@ -34,7 +34,8 @@ Built by [FoldNine](https://foldnine.dev). Apache-2.0.
 | GitHub Action | [foldnine/aftergreen-action](https://github.com/foldnine/aftergreen-action) | v1.0.1; HTTP checks only |
 
 Not built: n8n or other workflow-tool integrations, other databases, a hosted
-service, a UI, retries or scheduling.
+service, a UI or scheduling. Retries and JSON response assertions exist only in
+`aftergreen verify` (unreleased).
 
 ## Install
 

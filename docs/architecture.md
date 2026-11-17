@@ -54,6 +54,18 @@ cancellation are tested without network or database. The real engines have
 their own tests, plus the HTTP conformance cases and the PostgreSQL
 integration suite.
 
+**Retries around engines, not inside them.** The engines stay one-shot.
+`runner` repeats an observation under a hard deadline and decides with the
+last completed one. Retries can't change the one-shot commands, and the
+verdict rules for a stabilising rollout live in one place. Mid-window
+mismatches aren't final. Cancellation before the deadline is `UNKNOWN`.
+Being VERIFIED without enough consecutive observations is `UNKNOWN`.
+
+**A tiny JSON path, not an expression engine.** `$`, `.name`, `[n]` and
+typed `equals` cover "which revision is serving". A larger language would add
+parsing risk and evaluation ambiguity for little benefit. Responses with
+duplicate keys are `UNKNOWN`, because parsers disagree about which value wins.
+
 **File containment.** Contract files are opened through `os.Root` relative to
 the YAML file's directory. A contract can't read files outside it, even
 through symlinks. The YAML file itself is still trusted input (see

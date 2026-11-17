@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	// MaxBodyBytes is the largest response body inspected for a substring assertion.
+	// MaxBodyBytes is the largest response body inspected for a body assertion.
 	MaxBodyBytes = 1 << 20
 	MinTimeout   = time.Second
 	MaxTimeout   = 60 * time.Second
@@ -47,6 +47,9 @@ type Contract struct {
 	URL                   string
 	ExpectedStatus        int
 	ExpectedBodySubstring string
+	// JSON assertions on the response body (used by `aftergreen verify`).
+	// When set, a body that is not valid JSON is FAILED.
+	JSON []JSONAssertion
 	// Timeout bounds the whole request including the body read; 1s..60s.
 	Timeout time.Duration
 }
@@ -89,6 +92,9 @@ func (c Contract) Validate() (*url.URL, error) {
 	}
 	if c.Timeout < MinTimeout || c.Timeout > MaxTimeout {
 		return nil, errors.New("timeout must be between 1s and 60s")
+	}
+	if err := validateAssertions(c.JSON); err != nil {
+		return nil, err
 	}
 	return parsed, nil
 }
@@ -144,7 +150,7 @@ func Verify(ctx context.Context, contract Contract) (Verdict, error) {
 		verdict.Status = StatusFailed
 		verdict.Reasons = append(verdict.Reasons, fmt.Sprintf("expected HTTP status %d, observed %d", contract.ExpectedStatus, observed))
 	}
-	if contract.ExpectedBodySubstring == "" {
+	if contract.ExpectedBodySubstring == "" && len(contract.JSON) == 0 {
 		return verdict, nil
 	}
 
@@ -160,9 +166,21 @@ func Verify(ctx context.Context, contract Contract) (Verdict, error) {
 	case len(body) > MaxBodyBytes:
 		return unknown(observed, "HTTP response body exceeds the 1 MiB verification limit"), nil
 	}
-	if !bytes.Contains(body, []byte(contract.ExpectedBodySubstring)) {
+	if contract.ExpectedBodySubstring != "" && !bytes.Contains(body, []byte(contract.ExpectedBodySubstring)) {
 		verdict.Status = StatusFailed
 		verdict.Reasons = append(verdict.Reasons, "response body did not contain the expected text")
+	}
+	// JSON assertions describe the expected response; an error page with a
+	// wrong status is already FAILED and is not parsed.
+	if len(contract.JSON) > 0 && statusMatches {
+		reasons, unknownReason := evaluateJSON(body, contract.JSON)
+		if unknownReason != "" && verdict.Status != StatusFailed {
+			return unknown(observed, unknownReason), nil
+		}
+		if len(reasons) > 0 {
+			verdict.Status = StatusFailed
+			verdict.Reasons = append(verdict.Reasons, reasons...)
+		}
 	}
 	return verdict, nil
 }
