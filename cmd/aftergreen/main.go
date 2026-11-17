@@ -34,6 +34,8 @@ const demoJSON = `{
 }`
 
 const usageText = `Usage:
+  aftergreen verify [-f aftergreen.yaml]
+                     (verify every check in a contract file; see docs/verify.md)
   aftergreen demo  [--dir PATH]
   aftergreen check [--file PATH] [--json]
   aftergreen http  --url URL [--status 200] [--contains TEXT] [--timeout 10s] [--json]
@@ -55,6 +57,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runDemo(args[1:], stdout, stderr)
 	case "check":
 		return runCheck(args[1:], stdout, stderr)
+	case "verify":
+		return runVerify(args[1:], stdout, stderr)
 	case "http":
 		return runHTTP(args[1:], stdout, stderr)
 	case "postgres":

@@ -1,0 +1,23 @@
+# HTTP and PostgreSQL checks in one contract.
+#   export AFTERGREEN_POSTGRES_URL='postgres://aftergreen_reader@db:5432/app?sslmode=verify-full'
+#   DEPLOY_SHA=a82f19c DEPLOY_ID=run-1001 aftergreen verify -f with-postgres.yaml
+version: 1
+
+deployment:
+  name: payment-api
+  revision: "${DEPLOY_SHA}"
+
+checks:
+  - id: correct-revision
+    type: http
+    url: https://api.example.com/version
+    expect:
+      status: 200
+      contains: "${DEPLOY_SHA}"
+
+  # The deploy job records each release. The key must be this run's ID:
+  # verify never falls back to a key stored in the contract file.
+  - id: release-recorded
+    type: postgres
+    contract: checks/deploy.json
+    key: "${DEPLOY_ID}"

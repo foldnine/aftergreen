@@ -1,0 +1,26 @@
+# AfterGreen verification contract. Run: aftergreen verify -f aftergreen.yaml
+# Local demo (see README.md in this directory):
+#   python3 -m http.server 8000 --bind 127.0.0.1 --directory site
+#   DEPLOY_SHA=a82f19c aftergreen verify -f aftergreen.yaml
+version: 1
+
+deployment:
+  name: payment-api
+  revision: "${DEPLOY_SHA}"
+
+checks:
+  # The endpoint answers 200 for any build. The revision check is what proves
+  # that this deployment is the one serving traffic.
+  - id: service-up
+    type: http
+    url: http://127.0.0.1:8000/version.json
+    expect:
+      status: 200
+
+  - id: correct-revision
+    type: http
+    url: http://127.0.0.1:8000/version.json
+    timeout: 5s
+    expect:
+      status: 200
+      contains: '"revision":"${DEPLOY_SHA}"'

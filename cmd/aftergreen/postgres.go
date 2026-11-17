@@ -56,35 +56,15 @@ func runPostgres(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "error: invalid contract:", err)
 		return exitInvalid
 	}
-	dsn := os.Getenv(postgresURLEnv)
-	if dsn == "" {
-		fmt.Fprintf(stderr, "error: set %s to a PostgreSQL connection string for a read-only role\n", postgresURLEnv)
-		return exitInvalid
-	}
-	config, err := pgx.ParseConfig(dsn)
+	connConfig, err := postgresConfig()
 	if err != nil {
-		// Never print the parse error: it may contain the connection string.
-		fmt.Fprintf(stderr, "error: %s is not a valid PostgreSQL connection string\n", postgresURLEnv)
+		fmt.Fprintln(stderr, "error:", err)
 		return exitInvalid
 	}
-	config.ConnectTimeout = *timeout
-	// Only application_name is sent at startup: connection poolers such as
-	// PgBouncer reject unknown startup parameters. Read-only is enforced per
-	// transaction (BEGIN READ ONLY) and should also be set on the role.
-	config.RuntimeParams["application_name"] = "aftergreen"
-	db := stdlib.OpenDB(*config)
-	defer db.Close()
-	db.SetMaxOpenConns(1)
-
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	verdict, err := postgres.Verify(ctx, db, contract)
+	verdict, err := verifyPostgres(context.Background(), connConfig, contract, *timeout)
 	if err != nil {
 		fmt.Fprintln(stderr, "error: invalid contract:", err)
 		return exitInvalid
-	}
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) && verdict.Status == postgres.StatusUnknown {
-		verdict.Reasons = append(verdict.Reasons, fmt.Sprintf("timeout of %s exceeded", *timeout))
 	}
 	if *jsonOut {
 		b, _ := json.MarshalIndent(verdict, "", "  ")
@@ -96,6 +76,46 @@ func runPostgres(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	return exitCode(verdict.Status)
+}
+
+// postgresConfig parses the connection string from AFTERGREEN_POSTGRES_URL.
+// Errors never contain the connection string.
+func postgresConfig() (*pgx.ConnConfig, error) {
+	dsn := os.Getenv(postgresURLEnv)
+	if dsn == "" {
+		return nil, fmt.Errorf("set %s to a PostgreSQL connection string for a read-only role", postgresURLEnv)
+	}
+	config, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		// Never print the parse error: it may contain the connection string.
+		return nil, fmt.Errorf("%s is not a valid PostgreSQL connection string", postgresURLEnv)
+	}
+	return config, nil
+}
+
+// verifyPostgres opens one connection, runs postgres.Verify within timeout and
+// closes the connection. A non-nil error means the contract is invalid.
+func verifyPostgres(ctx context.Context, connConfig *pgx.ConnConfig, contract postgres.Contract, timeout time.Duration) (postgres.Verdict, error) {
+	config := connConfig.Copy()
+	config.ConnectTimeout = timeout
+	// Only application_name is sent at startup: connection poolers such as
+	// PgBouncer reject unknown startup parameters. Read-only is enforced per
+	// transaction (BEGIN READ ONLY) and should also be set on the role.
+	config.RuntimeParams["application_name"] = "aftergreen"
+	db := stdlib.OpenDB(*config)
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	verdict, err := postgres.Verify(ctx, db, contract)
+	if err != nil {
+		return verdict, err
+	}
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) && verdict.Status == postgres.StatusUnknown {
+		verdict.Reasons = append(verdict.Reasons, fmt.Sprintf("timeout of %s exceeded", timeout))
+	}
+	return verdict, nil
 }
 
 func schemaOrDefault(s string) string {
