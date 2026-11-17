@@ -11,7 +11,11 @@ one overall verdict.
 aftergreen verify -f aftergreen.yaml
 ```
 
-`-f` / `--file` defaults to `aftergreen.yaml` in the current directory.
+| Flag | Meaning |
+| --- | --- |
+| `-f`, `--file` | Contract file, default `aftergreen.yaml` |
+| `--json` | Print the [JSON report](#json-report) on stdout instead of the text report. No progress lines |
+| `--report FILE` | Also write the JSON report to `FILE` (replaced atomically) |
 
 ## Example
 
@@ -249,6 +253,7 @@ FAILED    release-recorded
 ─────────────────────────────────────
 
 Deployment verification FAILED
+At least one expected outcome was observed to be wrong.
 
 1 verified
 1 failed
@@ -260,6 +265,71 @@ Duration: 2.4s
 Verdicts are always spelled out, never shown by colour alone. Reasons follow
 the engines' rules: no URLs, response bodies, expected text, keys, row values
 or connection strings. The deployment name and revision **are** printed.
+
+## JSON report
+
+`--json` prints the report on stdout. `--report FILE` writes the same bytes
+to a file, for example as a CI artifact. Both can be combined with each other
+and with the text output.
+
+```json
+{
+  "version": 1,
+  "aftergreen_version": "v0.2.0",
+  "deployment": { "name": "payment-api", "revision": "a82f19c" },
+  "verdict": "FAILED",
+  "summary": { "verified": 1, "failed": 1, "unknown": 0 },
+  "started_at": "2026-11-17T10:00:00.000Z",
+  "completed_at": "2026-11-17T10:00:02.412Z",
+  "duration_ms": 2412,
+  "checks": [
+    {
+      "id": "correct-version",
+      "type": "http",
+      "verdict": "VERIFIED",
+      "reasons": [],
+      "attempts": 3,
+      "duration_ms": 2398,
+      "observed_status": 200
+    },
+    {
+      "id": "release-recorded",
+      "type": "postgres",
+      "verdict": "FAILED",
+      "reasons": ["destination record missing"],
+      "attempts": 1,
+      "duration_ms": 14
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `version` | Report format version, `1` |
+| `deployment.revision` | Omitted when the contract has none |
+| `verdict` | `VERIFIED`, `FAILED` or `UNKNOWN`. Matches the exit code |
+| `started_at`, `completed_at` | UTC, RFC 3339 with milliseconds |
+| `checks` | In contract order. `reasons` is always an array, empty when verified |
+| `checks[].observed_status` | HTTP only, omitted when no response was received |
+
+Rules:
+
+- Stdout holds exactly one JSON document and nothing else: no colours, no
+  progress, no banners. Errors go to stderr.
+- Invalid configuration: nothing on stdout, no report file, exit 2.
+- The report contains what the text report shows and nothing more: no URLs,
+  `contains`/`equals` values, PostgreSQL keys, connection strings, response
+  bodies or row values. The deployment name and revision are included.
+- `--report` creates its temporary file before the first observation, so an
+  unwritable path or a directory fails with exit 2 immediately. If the final write fails
+  anyway, AfterGreen prints the verdict on stderr and exits 2.
+- Format compatibility: fields may be added within version 1. Existing
+  fields keep their name, type and meaning. Anything else needs a new
+  `version`.
+
+CI examples: [GitHub Actions](../examples/ci/github-actions.yml),
+[GitLab CI](../examples/ci/gitlab-ci.yml).
 
 ## Compatibility policy
 

@@ -34,7 +34,7 @@ const demoJSON = `{
 }`
 
 const usageText = `Usage:
-  aftergreen verify [-f aftergreen.yaml]
+  aftergreen verify [-f aftergreen.yaml] [--json] [--report FILE]
                      (verify every check in a contract file; see docs/verify.md)
   aftergreen demo  [--dir PATH]
   aftergreen check [--file PATH] [--json]

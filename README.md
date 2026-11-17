@@ -136,14 +136,18 @@ checks:
 ```
 
 ```bash
-aftergreen verify -f aftergreen.yaml
+aftergreen verify -f aftergreen.yaml                    # text report
+aftergreen verify -f aftergreen.yaml --json             # JSON report on stdout
+aftergreen verify -f aftergreen.yaml --report out.json  # text, plus JSON evidence file
 ```
 
 Every check is observed independently. Any `FAILED` makes the deployment
 `FAILED`, otherwise any `UNKNOWN` makes it `UNKNOWN`. Unset variables, unknown
-fields and duplicate IDs are rejected before anything runs. See
-[docs/verify.md](docs/verify.md) and the local demo in
-[examples/verification/](examples/verification/).
+fields and duplicate IDs are rejected before anything runs. Checks can retry
+until a rollout settles and can assert JSON fields. See
+[docs/verify.md](docs/verify.md), the local demo in
+[examples/verification/](examples/verification/) and the CI examples in
+[examples/ci/](examples/ci/).
 
 ### Exit codes
 

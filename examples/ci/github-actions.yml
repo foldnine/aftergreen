@@ -1,0 +1,49 @@
+# Verify a deployment after the deploy job reports success.
+# Needs AfterGreen v0.2.0 or later (`aftergreen verify` is not released yet).
+# Copy into .github/workflows/ and adapt the deploy job and aftergreen.yaml.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "your deploy here"
+
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install AfterGreen (checksum-verified)
+        run: |
+          curl -fsSL https://aftergreen.foldnine.dev/install.sh | sh -s -- --version v0.2.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify the deployment
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+          DEPLOY_ID: ${{ github.run_id }}
+          # Only needed for postgres checks. Use a SELECT-only role.
+          AFTERGREEN_POSTGRES_URL: ${{ secrets.AFTERGREEN_POSTGRES_URL }}
+        # Exit codes: 0 verified, 1 failed, 2 invalid input, 3 unknown.
+        # Any non-zero code fails the job; UNKNOWN is never a pass.
+        run: aftergreen verify -f aftergreen.yaml --report aftergreen-report.json
+
+      - name: Keep the verification evidence
+        if: always()
+        # Pin to a full commit SHA in your workflow.
+        uses: actions/upload-artifact@v4
+        with:
+          name: aftergreen-report
+          path: aftergreen-report.json
+          if-no-files-found: ignore
